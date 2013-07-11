@@ -25,11 +25,10 @@
 
 #include <SWI-cpp.h>
 
+/** avoid 2 warnings ( -Wunused-parameter ) for each builtin */
 #ifndef NO_REDEFINE_PREDICATE_NAME_ARITY
 
-// avoid 2 warnings ( -Wunused-parameter ) for each builtin
 #undef PREDICATE
-
 #define PREDICATE(name, arity) \
     static foreign_t \
     pl_ ## name ## __ ## arity(PlTermv _av); \
@@ -46,23 +45,43 @@
                         _pl_ ## name ## __ ## arity); \
     static foreign_t pl_ ## name ## __ ## arity(PlTermv _av)
 
+#define NAMED_PREDICATE(plname, name, arity) \
+    static foreign_t \
+    pl_ ## name ## __ ## arity(PlTermv _av); \
+    static foreign_t \
+    _pl_ ## name ## __ ## arity(term_t t0, int, control_t) \
+    { try \
+      { \
+        return pl_ ## name ## __ ## arity(PlTermv(arity, t0)); \
+      } catch ( PlException &ex ) \
+      { return ex.plThrow(); \
+      } \
+    } \
+    static PlRegister _x ## name ## __ ## arity(PROLOG_MODULE, #plname, arity, \
+                        _pl_ ## name ## __ ## arity); \
+    static foreign_t pl_ ## name ## __ ## arity(PlTermv _av)
+
 #endif
 
 #ifndef NO_SHORTEN_INTERFACE
 
-// shorten interface
+/** shorten interface */
+
 typedef const char* CCP;
+typedef const void* CVP;
+#define CT QThread::currentThread()
 
 #include <QString>
-inline CCP ccp(QString s) { return s.toUtf8().constData(); }
 
 inline CCP S(const PlTerm &T) { return T; }
+inline PlAtom A(QString s) { QByteArray a = s.toUtf8(); return PlAtom(a.constData()); }
+
 typedef PlTerm T;
 typedef PlTermv V;
-typedef PlAtom A;
 typedef PlCompound C;
+typedef PlTail L;
 
-// get back an object passed by pointer to Prolog
+/** get back an object passed by pointer to Prolog */
 template<typename Obj> Obj* pq_cast(T ptr) { return static_cast<Obj*>(static_cast<void*>(ptr)); }
 
 #endif

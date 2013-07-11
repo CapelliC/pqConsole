@@ -20,19 +20,24 @@
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#define PROLOG_MODULE "pqConsole"
-
-#include "ConsoleEdit.h"
+#include "Swipl_IO.h"
 #include "PREDICATE.h"
+#include "Completion.h"
 
 #include <QKeyEvent>
 #include <QRegExp>
 #include <QtDebug>
 #include <QTimer>
 #include <QEventLoop>
+#include <QAction>
+#include <QMainWindow>
+#include <QMenuBar>
+#include <QApplication>
+#include <QToolTip>
+#include <QFileDialog>
 
-// some default color, seems suffciently visible to me
-//
+/** some default color, seems sufficiently visible to me
+ */
 static QColor ANSI2col(int c, bool highlight = false) {
     static QColor
     v[] = { "black",
@@ -55,56 +60,116 @@ static QColor ANSI2col(int c, bool highlight = false) {
     return (highlight ? h : v)[c];
 }
 
-// SINGLETON pattern - only a console allowed in a process
-//
-static ConsoleEdit *con_;
-ConsoleEdit* ConsoleEdit::console() { return con_; }
-
-// allow to alter default refresh rate (simply the count of output before setting cursor at end)
-//
-static int update_refresh_rate = 100;
-PREDICATE(set_update_refresh_rate, 1) {
-    update_refresh_rate = A1;
-    return TRUE;
-}
-
-// build command line interface to SWI Prolog engine
-//
+/** build command line interface to SWI Prolog engine
+ *  this start the *primary* console
+ */
 ConsoleEdit::ConsoleEdit(int argc, char **argv, QWidget *parent)
-    : ConsoleEditBase(parent), count_output(0) {
+    : ConsoleEditBase(parent), io(0)
+{
+    qApp->setWindowIcon(QIcon(":/swipl.png"));
 
-    Q_ASSERT(con_ == 0);
-    con_ = this;
+    //qDebug() << "ConsoleEdit" << CVP(this) << CVP(CT);
+
+    //int t_pfunc =
+    qRegisterMetaType<pfunc>("pfunc");
+    //qDebug() << "t_pfunc" << t_pfunc;
+
+    setup();
+    eng = new SwiPrologEngine;
 
     // wire up console IO
-    connect(&eng, SIGNAL(user_output(QString)), this, SLOT(out(QString)));
-    connect(&eng, SIGNAL(user_prompt()), this, SLOT(prompt()));
-    connect(this, SIGNAL(inp(QString)), &eng, SLOT(user_input(QString)));
+    connect(eng, SIGNAL(user_output(QString)), this, SLOT(user_output(QString)));
+    connect(eng, SIGNAL(user_prompt(int)), this, SLOT(user_prompt(int)));
+    connect(this, SIGNAL(user_input(QString)), eng, SLOT(user_input(QString)));
 
-    connect(this, SIGNAL(cursorPositionChanged()), this, SLOT(onCursorPositionChanged()));
+    // issue worker thread start
+    eng->start(argc, argv);
+}
+
+/** this start an *interactor* console
+ */
+ConsoleEdit::ConsoleEdit(Swipl_IO* io, QString title)
+    : ConsoleEditBase(), eng(0), io(io)
+{
+    io->host = this;
+
+    setup();
+
+    // wire up console IO
+    connect(io, SIGNAL(user_output(QString)), this, SLOT(user_output(QString)));
+    connect(io, SIGNAL(user_prompt(int)), this, SLOT(user_prompt(int)));
+    connect(this, SIGNAL(user_input(QString)), io, SLOT(user_input(QString)));
+
+    auto w = new QMainWindow();
+    w->setCentralWidget(this);
+    w->setWindowTitle(title);
+    w->show();
+
+    QTimer::singleShot(100, this, SLOT(attached()));
+}
+
+/** common setup between =main= and =thread= console
+ *  different setting required, due to difference in events handling
+ */
+void ConsoleEdit::setup() {
+
+    qApp->installEventFilter(this);
+    thid = -1;
+    count_output = 0;
+    update_refresh_rate = 100;
+    preds = 0;
+    helpidx_status = untried;
 
     // preset presentation attributes
     tcf.setForeground(ANSI2col(0));
     setLineWrapMode(ConsoleEditBase::NoWrap);
     setFont(QFont("courier"));
 
-    // issue worker thread start
-    eng.start(argc, argv);
+    connect(this, SIGNAL(cursorPositionChanged()), this, SLOT(onCursorPositionChanged()));
+
+    connect(this, SIGNAL(sig_run_function(pfunc)), this, SLOT(run_function(pfunc)));
 }
 
-// strict control on keyboard events required
-//
+/** strict control on keyboard events required
+ */
 void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
-
-    bool accept = true, ret = false, down = true;
-    QTextCursor c = textCursor();
-    int cp = c.position();
 
     using namespace Qt;
 
-    switch (event->key()) {
+    QTextCursor c = textCursor();
 
+    bool on_completion = preds && preds->popup()->isVisible();
+    if (on_completion) {
+        // following keys are forwarded by the completer to the widget
+        switch (event->key()) {
+        case Key_Enter:
+        case Key_Return:
+        case Key_Escape:
+        case Key_Tab:
+        case Key_Backtab:
+            event->ignore();
+            return; // let the completer do default behavior
+        default:
+            compinit(c);
+            break;
+        }
+    }
+
+    bool ctrl = event->modifiers() == CTRL;
+    bool accept = true, ret = false, down = true;
+    int cp = c.position(), k = event->key();
+
+    switch (k) {
+
+    case Key_Space:
     case Key_Tab:
+        if (!on_completion && ((k == Key_Space && ctrl) || k == Key_Tab) && cp >= fixedPosition) {
+            compinit(c);
+            return;
+        }
+        break;
+
+    //case Key_Tab:
     case Key_Backtab:
         // otherwise tab control get lost !
         event->ignore();
@@ -119,7 +184,7 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         break;
 
     case Key_Return:
-        ret = accept = (cp > fixedPosition && c.atEnd());
+        ret = accept = (cp >= fixedPosition && c.atEnd());
         break;
     case ';':
         if (cp == fixedPosition && c.atEnd())
@@ -136,31 +201,36 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         down = false;
         // fall throu
     case Key_Down:
-        if (event->modifiers() == CTRL) {
-            // naive 'lineedit' history handler
+        if (!ctrl) {
+            // naive history handler
             if (cp >= fixedPosition) {
                 if (!history.empty()) {
                     accept = false;
                     c.setPosition(fixedPosition);
                     c.movePosition(c.End, c.KeepAnchor);
                     c.removeSelectedText();
-                    c.insertText(history[history_next]);
+                    if (history_next < history.count())
+                        c.insertText(history[history_next]);
                     if (down) {
-                        if (history_next < history.count() - 1)
+                        if (history_next < history.count())
                             ++history_next;
                     } else
                         if (history_next > 0)
                             --history_next;
+                    return;
                 }
             }
+            event->ignore();
+            return;
         }
-        break;
+        c.movePosition(k == Key_Up ? c.Up : c.Down);
+        setTextCursor(c);
+        return;
 
     case Key_C:
     // case Key_Pause: I thought this one also work. It's not the case.
-        if (event->modifiers() == CTRL) {
-            qDebug() << "SIGINT";
-            eng.cancel_running();
+        if (ctrl) {
+            eng->cancel_running();
             break;
         }
         // fall throu
@@ -169,8 +239,14 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         accept = cp >= fixedPosition || event->matches(QKeySequence::Copy);
     }
 
-    if (accept)
+    if (accept) {
         ConsoleEditBase::keyPressEvent(event);
+        if (on_completion) {
+            c.select(QTextCursor::WordUnderCursor);
+            preds->setCompletionPrefix(c.selectedText());
+            preds->popup()->setCurrentIndex(preds->completionModel()->index(0, 0));
+        }
+    }
 
     if (ret) {
         QString t = toPlainText();
@@ -185,13 +261,61 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
             else
                 history_next = history.count() - 1;
         }
-        emit inp(cmd);
+
+        // I don't understand why doesn't work (in thread), but the connected SLOT isn't called
+        if (io)
+            io->take_input(cmd);
+        else
+            emit user_input(cmd);
     }
 }
 
-// send text to output
-//
-void ConsoleEdit::out(QString text) {
+/** completion initialize
+ *  this is the simpler setup I found so far
+ */
+void ConsoleEdit::compinit(QTextCursor c) {
+
+    /** issue setof(M,current_module(M),L) */
+    {   SwiPrologEngine::in_thread _it;
+        QStringList lmods;
+        PlTerm M, Ms;
+        if (PlCall("setof", PlTermv(M, PlCompound("current_module", M), Ms)))
+            for (PlTail x(Ms); x.next(M); )
+                lmods.append(CCP(M));
+        if (lmods != lmodules) {
+            lmodules = lmods;
+            delete preds;
+            preds = 0;
+        }
+    }
+
+    if (!preds)
+        initCompletion();
+
+    //c.select(QTextCursor::WordUnderCursor);
+    c.movePosition(c.StartOfWord, c.KeepAnchor);
+    preds->setCompletionPrefix(c.selectedText());
+    preds->popup()->setCurrentIndex(preds->completionModel()->index(0, 0));
+
+    QRect cr = cursorRect();
+    cr.setWidth(300);
+    preds->complete(cr);
+}
+
+/** handle focus event to keep QCompleter happy
+ */
+void ConsoleEdit::focusInEvent(QFocusEvent *e) {
+    if (preds)
+        preds->setWidget(this);
+    ConsoleEditBase::focusInEvent(e);
+}
+
+/** \brief send text to output
+ *
+ *  Decode ANSI terminal sequences, to output coloured text.
+ *  Colours encoding are (approx) derived from swipl console.
+ */
+void ConsoleEdit::user_output(QString text) {
     QTextCursor c = textCursor();
     c.movePosition(QTextCursor::End);
 
@@ -260,9 +384,28 @@ void ConsoleEdit::out(QString text) {
     }
 }
 
-// issue an input request
-//
-void ConsoleEdit::prompt() {
+/** issue an input request
+ */
+void ConsoleEdit::user_prompt(int threadId) {
+    //qDebug() << "user_prompt" << CVP(this) << threadId;
+
+    Q_ASSERT(thid == -1 || thid == threadId);
+    if (thid == -1)
+        thid = threadId;
+
+    if (helpidx_status == untried) {
+        helpidx_status = missing;
+        SwiPrologEngine::in_thread _e;
+        try {
+            if (PlCall("use_module(helpidx)") && PlCall("current_module(help_index)"))
+                helpidx_status = available;
+        }
+        catch(PlException e) {
+            qDebug() << CCP(e);
+        }
+        //qDebug() << "help_index" << helpidx_status;
+    }
+
     QTextCursor c = textCursor();
     c.movePosition(QTextCursor::End);
     fixedPosition = c.position();
@@ -272,8 +415,8 @@ void ConsoleEdit::prompt() {
         QTimer::singleShot(1, this, SLOT(command_do()));
 }
 
-// push command on queue
-//
+/** push command on queue
+ */
 bool ConsoleEdit::command(QString cmd) {
     commands.append(cmd);
     if (commands.count() == 1)
@@ -281,22 +424,172 @@ bool ConsoleEdit::command(QString cmd) {
     return true;
 }
 
-// push command from queue to Prolog processor
-//
+/** push command from queue to Prolog processor
+ */
 void ConsoleEdit::command_do() {
     QString cmd = commands.takeFirst();
     QTextCursor c = textCursor();
     c.movePosition(QTextCursor::End);
     c.insertText(cmd);
-    emit inp(cmd);
+    emit user_input(cmd);
 }
 
-// visual hint on available editing, based on cursor position
-//
-void ConsoleEdit::onCursorPositionChanged()
-{
-    if (fixedPosition > textCursor().position())
+/** handle tooltip from helpidx to display current cursor word synopsis
+ */
+bool ConsoleEdit::event(QEvent *event) {
+    if (event->type() == QEvent::ToolTip) {
+        QHelpEvent *helpEvent = static_cast<QHelpEvent*>(event);
+        if (!last_tip.isEmpty())
+            QToolTip::showText(helpEvent->globalPos(), last_tip);
+        else {
+            QToolTip::hideText();
+            event->ignore();
+        }
+        return true;
+    }
+
+    return ConsoleEditBase::event(event);
+}
+
+/** sense word under cursor for tooltip display
+ */
+bool ConsoleEdit::eventFilter(QObject *, QEvent *event) {
+    if (event->type() == QEvent::MouseMove) {
+        set_cursor_tip(cursorForPosition(static_cast<QMouseEvent*>(event)->pos()));
+    }
+    return false;
+}
+
+/** attempt - miserably failed - to gracefully stop XPCE thread
+ */
+bool ConsoleEdit::can_close() {
+    SwiPrologEngine::in_thread _e;
+    bool pce_running = false;
+    try {
+        T Id, Prop;
+        PlQuery q("thread_property", V(Id, Prop));
+        while (q.next_solution())
+            if (    S(Id) == QString("pce") &&
+                    Prop.name() == QString("status") &&
+                    Prop[1].name() == QString("running"))
+                pce_running = true;
+        if (pce_running) {
+            if (!PlCall("in_pce_thread(send(@pce, die, 0))"))
+                qDebug() << "XPCE fail to quit";
+            else
+                pce_running = false;
+        }
+    }
+    catch(PlException e) {
+        qDebug() << CCP(e);
+    }
+    return !pce_running;
+}
+
+/** display different cursor where editing available
+ */
+void ConsoleEdit::onCursorPositionChanged() {
+    QTextCursor c = textCursor();
+    set_cursor_tip(c);
+    if (fixedPosition > c.position())
         viewport()->setCursor(Qt::OpenHandCursor);
     else
         viewport()->setCursor(Qt::IBeamCursor);
+}
+
+/** setup tooltip info
+ */
+void ConsoleEdit::set_cursor_tip(QTextCursor c) {
+    if (helpidx_status == available) {
+        c.select(c.WordUnderCursor);
+        QString w = c.selectedText();
+        //qDebug() << w;
+        if (!w.isEmpty() && w != last_word) {
+            last_word = w;
+            SwiPrologEngine::in_thread tr;
+            try {
+                T Name = A(last_word), Arity, Descr, Start, Stop;
+                PlQuery q("help_index", "predicate", V(Name, Arity, Descr, Start, Stop));
+                QStringList tips;
+                while (q.next_solution()) {
+                    long arity = Arity.type() == PL_INTEGER ? long(Arity) : -1;
+                    tips.append(QString("%1/%2:%3").arg(w).arg(arity).arg(CCP(Descr)));
+                }
+                last_tip = tips.join("\n");
+            }
+            catch(PlException e) {
+                qDebug() << CCP(e);
+            }
+
+            if (!last_tip.isEmpty())
+                setToolTip(last_tip);
+        }
+    }
+}
+
+/** serve the user menu issuing the command
+ */
+void ConsoleEdit::onConsoleMenuAction() {
+    QAction *a = qobject_cast<QAction *>(sender());
+    if (a)
+        command(a->toolTip());
+    //eng->query_run(a->toolTip());
+}
+
+/** place accepted Completer selection in editor
+ *  very clean, after removing (useless?) customcompleter sample code
+ */
+void ConsoleEdit::insertCompletion(QString completion) {
+    int extra = completion.length() - preds->completionPrefix().length();
+    textCursor().insertText(completion.right(extra));
+}
+
+/** hack around a critical race - apparently
+ */
+void ConsoleEdit::initCompletion() {
+    Q_ASSERT(!preds);
+    lpreds.clear();
+    Completion::initialize(lpreds);
+    preds = new t_Completion(lpreds);
+    preds->setWidget(this);
+    connect(preds, SIGNAL(activated(QString)), this, SLOT(insertCompletion(QString)));
+    qDebug() << "initCompletion" << lpreds.count();
+}
+
+/** remove all text
+ */
+void ConsoleEdit::tty_clear() {
+    clear();
+    fixedPosition = 0;
+}
+
+/** issue instancing in GUI thread (cant moveToThread a Widget)
+ */
+void ConsoleEdit::new_console(Swipl_IO *io, QString title) {
+    Q_ASSERT(io->host == 0);
+
+    auto r = new req_new_console(io, title);
+    QApplication::instance()->postEvent(this, r);
+
+    io->wait_console();
+}
+
+/** let background thread resume execution
+ */
+void ConsoleEdit::attached() {
+    io->attached(this);
+}
+
+/** added to serve creation in thread
+ *  signal from foreign thread to Qt was not fired
+ */
+void ConsoleEdit::customEvent(QEvent *event) {
+
+    qDebug() << "new_console_req" << CVP(this) << CVP(CT);
+
+    Q_ASSERT(event->type() == QEvent::User);
+    auto e = static_cast<req_new_console *>(event);
+
+    /* fire and forget :) auto ce = */
+    new ConsoleEdit(e->iop, e->title);
 }

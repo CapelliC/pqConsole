@@ -11,6 +11,7 @@
 #-------------------------------------------------
 
 QT += testlib
+greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 TARGET = pqConsole
 TEMPLATE = lib
@@ -24,7 +25,10 @@ SOURCES += \
     pqConsole.cpp \
     SwiPrologEngine.cpp \
     ConsoleEdit.cpp \
-    pqTerm.cpp
+    pqTerm.cpp \
+    Completion.cpp \
+    Swipl_IO.cpp \
+    pqMainWindow.cpp
 
 HEADERS += \
     pqConsole.h \
@@ -32,7 +36,10 @@ HEADERS += \
     SwiPrologEngine.h \
     ConsoleEdit.h \
     PREDICATE.h \
-    pqTerm.h
+    pqTerm.h \
+    Completion.h \
+    Swipl_IO.h \
+    pqMainWindow.h
 
 symbian {
     MMP_RULES += EXPORTUNFROZEN
@@ -59,5 +66,16 @@ unix:!symbian {
     INSTALLS += target
 }
 
+windows {
+    SwiPl = "C:\Program Files\pl"
+    INCLUDEPATH += $$SwiPl\include
+    LIBS += -L$$SwiPl\bin -lswipl
+}
+
 OTHER_FILES += \
-    README.md
+    README.md \
+    pqConsole.doxy \
+    swipl.png
+
+RESOURCES += \
+    pqConsole.qrc

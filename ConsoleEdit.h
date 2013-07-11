@@ -24,76 +24,176 @@
 #define CONSOLEEDIT_H
 
 #include <QPlainTextEdit>
-#include "SwiPrologEngine.h"
+#include <QCompleter>
 
 typedef QPlainTextEdit ConsoleEditBase;
 
-// client side of command line interface
-// run in GUI thread, sync using SwiPrologEngine interface
-//
+#include "SwiPrologEngine.h"
+#include "Completion.h"
+
+class Swipl_IO;
+
+/** client side of command line interface
+  * run in GUI thread, sync using SwiPrologEngine interface
+  */
 class PQCONSOLESHARED_EXPORT ConsoleEdit : public ConsoleEditBase {
     Q_OBJECT
+    Q_PROPERTY(int updateRefreshRate READ updateRefreshRate WRITE setUpdateRefreshRate)
 
 public:
 
-    // build command line interface to SWI Prolog engine
+    /** build command line interface to SWI Prolog engine */
     ConsoleEdit(int argc, char **argv, QWidget *parent = 0);
 
-    // push command on queue
+    /** create in prolog thread - call win_open_console() */
+    ConsoleEdit(Swipl_IO* io, QString Title);
+
+    /** push command on queue */
     bool command(QString text);
 
-    // access low level interface
-    SwiPrologEngine* engine() { return &eng; }
+    /** access low level interface */
+    SwiPrologEngine* engine() { return eng; }
 
-    // SINGLETON pattern - only a console allowed in a process
-    static ConsoleEdit* console();
+    /** a console is associated with a worker Prolog thread
+     *  should handle the case of yet-to-be-initialized root console
+     */
+    bool match_thread(int thread_id) const { return thid == thread_id || thid == -1; }
+
+    /** remove all text */
+    void tty_clear();
+
+    /** make public property, then available on Prolog side */
+    int updateRefreshRate() const { return update_refresh_rate; }
+    void setUpdateRefreshRate(int v) { update_refresh_rate = v; }
+
+    /** create a new console, bound to calling thread */
+    void new_console(Swipl_IO *e, QString title);
+
+    /** closeEvent only called for top level widgets */
+    bool can_close();
+
+    /** 3. attempt to run generic code inter threads */
+    void exec_func(pfunc f) { emit sig_run_function(f); }
+
+    /** 4. helper syncronization for modal loop */
+    struct exec_sync {
+        QMutex sync;
+        QWaitCondition ready;
+        void stop() {
+            sync.lock();
+            ready.wait(&sync);
+        }
+        void go() {
+            ready.wakeOne();
+        }
+    };
 
 protected:
 
-    // host actual interface object, running in background
-    SwiPrologEngine eng;
-    enum {startup, running} status;
+    /** host actual interface object, running in background */
+    SwiPrologEngine *eng;
 
-    // strict control on keyboard events required
+    /** can't get <eng> to work on a foreign thread - initiated from SWI-Prolog */
+    Swipl_IO *io;
+
+    /** strict control on keyboard events required */
     virtual void keyPressEvent(QKeyEvent *event);
 
-    // output text attributes
+    /** support completion */
+    virtual void focusInEvent(QFocusEvent *e);
+
+    /** support SWI... exec thread console creation */
+    struct req_new_console : public QEvent {
+        Swipl_IO *iop;
+        QString title;
+        req_new_console(Swipl_IO *iop, QString title) : QEvent(User), iop(iop), title(title) {}
+    };
+    virtual void customEvent(QEvent *event);
+
+    /** handle tooltip placing */
+    virtual bool event(QEvent *event);
+
+    /** sense word under cursor for tooltip display */
+    virtual bool eventFilter(QObject *, QEvent *event);
+
+    /** output text attributes */
     QTextCharFormat tcf;
 
-    // start point of engine output insertion
-    // i.e. keep last user editable position
+    /** start point of engine output insertion */
+    /** i.e. keep last user editable position */
     int fixedPosition;
 
-    // commands to be dispatched to engine thread
+    /** commands to be dispatched to engine thread */
     QStringList commands;
 
-    // poor man command history
+    /** poor man command history */
     QStringList history;
     int history_next;
 
-    // count output before setting cursor at end
+    /** count output before setting cursor at end */
     int count_output;
+
+    /** interval on count_output, determine how often to force output flushing */
+    int update_refresh_rate;
+
+    /** autocompletion - today not context sensitive */
+    /** will eventually become with help from the kernel */
+    typedef QCompleter t_Completion;
+    t_Completion *preds;
+    QStringList lpreds, lmodules;
+
+    /** factorize code, attempt to get visual clue from QCompleter */
+    void compinit(QTextCursor c);
+
+    /** associated thread id */
+    int thid;
+
+    /** wiring etc... */
+    void setup();
+
+    /** tooltips display, from helpidx.pl */
+    enum { untried, available, missing } helpidx_status;
+    QString last_word, last_tip;
+    void set_cursor_tip(QTextCursor c);
 
 public slots:
 
-    // send text to output
-    void out(QString text);
-
-    // issue an input request
-    void prompt();
-
-    // display different cursor where editing available
+    /** display different cursor where editing available */
     void onCursorPositionChanged();
+
+    /** serve console menus */
+    void onConsoleMenuAction();
+
+    /** 2. attempt to run generic code inter threads */
+    void run_function(pfunc f) { f(); }
 
 protected slots:
 
-    // push command from queue to Prolog processor
+    /** send text to output */
+    void user_output(QString text);
+
+    /** issue an input request */
+    void user_prompt(int threadId);
+
+    /** push command from queue to Prolog processor */
     void command_do();
+
+    /** push completion request in current command line */
+    void insertCompletion(QString);
+
+    /** setup context info for completion */
+    void initCompletion();
+
+    /** win_ ... API threaded construction: complete interactor setup */
+    void attached();
 
 signals:
 
-    // issued to serve prompt
-    void inp(QString);
+    /** issued to serve prompt */
+    void user_input(QString);
+
+    /** 3. attempt to run generic code inter threads */
+    void sig_run_function(pfunc f);
 };
 
 #endif

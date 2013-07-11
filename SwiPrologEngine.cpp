@@ -21,29 +21,41 @@
 */
 
 #include "SwiPrologEngine.h"
+#include "PREDICATE.h"
 #include <SWI-cpp.h>
 #include <SWI-Stream.h>
 #include <QtDebug>
 #include <signal.h>
+#include <QTimer>
 
-// singleton handling - just 1 engine x process
-static SwiPrologEngine *spe;
+/** singleton handling - process main engine
+ */
+SwiPrologEngine *SwiPrologEngine::spe;
 
-SwiPrologEngine::SwiPrologEngine(QObject *parent) : QThread(parent), argc(-1), thid(-1) {
-    // singleton handling
+/** enforce singleton handling
+ */
+SwiPrologEngine::SwiPrologEngine(QObject *parent)
+    : QThread(parent),
+      argc(-1),
+      thid(-1)
+{
     Q_ASSERT(spe == 0);
     spe = this;
 }
 
 SwiPrologEngine::~SwiPrologEngine() {
-    spe = 0;
-    ready.wakeAll();
+    if (spe == this) {
+        spe = 0;
+        ready.wakeAll();
 
-    bool ok = wait(1000);
-    Q_ASSERT(ok);
+        bool ok = wait(1000);
+        Q_ASSERT(ok);
+    }
 }
 
-SwiPrologEngine::in_thread::in_thread() {
+/** attaching *main* thread engine to another thread (ok GUI thread)
+ */
+SwiPrologEngine::in_thread::in_thread() : frame(0) {
     while (!spe)
         msleep(100);
     while (!spe->isRunning())
@@ -51,8 +63,11 @@ SwiPrologEngine::in_thread::in_thread() {
     while (spe->argc)
         msleep(100);
     PL_thread_attach_engine(0);
+    frame = new PlFrame;
 }
+
 SwiPrologEngine::in_thread::~in_thread() {
+    delete frame;
     PL_thread_destroy_engine();
 }
 
@@ -64,27 +79,41 @@ void SwiPrologEngine::start(int argc, char **argv) {
 }
 
 void SwiPrologEngine::user_input(QString s) {
+    //qDebug() << "user_input available" << CVP(this) << CVP(CT);
     buffer = s.toUtf8();
     ready.wakeOne();
 }
 
-/* fill the buffer */
+/** fill the buffer
+ */
 ssize_t SwiPrologEngine::_read_(void *handle, char *buf, size_t bufsize) {
+    //qDebug() << "_read_" << CVP(handle) << CVP(CT);
     Q_UNUSED(handle);
     Q_ASSERT(spe);
     return spe->_read_(buf, bufsize);
 }
 
-/* background read & query loop */
+/** background read & query loop
+ */
 ssize_t SwiPrologEngine::_read_(char *buf, size_t bufsize) {
-    emit user_prompt();
 
+_wait_:
+
+    //qDebug() << "POLL" << CVP(this) << CVP(CT);
+
+    emit user_prompt(PL_thread_self());
     thid = -1;
 
- _wait_:
+    sync.lock();
+    //bool x =
     ready.wait(&sync);
+    //qDebug() << "ready" << x;
+    sync.unlock();
+
     if (!spe) // terminated
         return 0;
+
+    //qDebug() << "AWAKE" << x << CVP(this) << CVP(CT);
 
     // tag status running - and interruptable
     thid = PL_thread_self();
@@ -92,8 +121,10 @@ ssize_t SwiPrologEngine::_read_(char *buf, size_t bufsize) {
     // async query interface served from same thread
     if (!queries.empty()) {
         for ( ; !queries.empty(); ) {
-            QString t = queries.takeFirst();
+            QPair<QString, QString> p = queries.takeFirst();
+            QString n = p.first, t = p.second;
             try {
+                Q_ASSERT(n.isEmpty());
                 PlQuery q("call", PlTermv(PlCompound(t.toUtf8())));
                 int occurrences = 0;
                 while (q.next_solution())
@@ -101,8 +132,7 @@ ssize_t SwiPrologEngine::_read_(char *buf, size_t bufsize) {
                 emit query_complete(t, occurrences);
             }
             catch(PlException ex) {
-                const char *msg = ex;
-                emit query_exception(t, msg);
+                emit query_exception(n, CCP(ex));
             }
         }
         goto _wait_;
@@ -116,8 +146,12 @@ ssize_t SwiPrologEngine::_read_(char *buf, size_t bufsize) {
     return l;
 }
 
-/* empty the buffer */
+/** empty the buffer
+ */
 ssize_t SwiPrologEngine::_write_(void *handle, char *buf, size_t bufsize) {
+    //if (handle == CVP(1)) qDebug() << "here is prompt";
+
+    //qDebug() << "_write_" << CVP(handle) << CVP(CT) << QString::fromUtf8(buf, bufsize);
     Q_UNUSED(handle);
     if (spe)    // not terminated?
         emit spe->user_output(QString::fromUtf8(buf, bufsize));
@@ -139,11 +173,42 @@ void SwiPrologEngine::run() {
 }
 
 void SwiPrologEngine::query_run(QString text) {
-    queries.append(text);
+    queries.append(qMakePair(QString(), text));
     ready.wakeOne();
+    //qDebug() << "query_run::wakeOne" << CVP(this) << CVP(CT);
+}
+void SwiPrologEngine::script_run(QString name, QString text) {
+    //qDebug() << "script_run" << CVP(spe) << CVP(CT);
+    queries.append(qMakePair(name, text));
+    QTimer::singleShot(100, this, SLOT(awake()));
+}
+void SwiPrologEngine::awake() {
+    Q_ASSERT(queries.count() == 1);
+    QPair<QString, QString> p = queries.takeFirst();
+    QString n = p.first, t = p.second;
+    Q_ASSERT(!n.isEmpty());
+    in_thread I;
+    try {
+        T cs, s, opts;
+        if (    PlCall("atom_codes", V(A(t), cs)) &&
+                PlCall("open_chars_stream", V(cs, s))) {
+            L l(opts);
+            l.append(C("stream", V(s)));
+            l.close();
+            if (PlCall("load_files", V(A(n), opts))) {
+                PlCall("close", V(s));
+                return;
+            }
+        }
+    }
+    catch(PlException ex) {
+        qDebug() << CCP(ex);
+    }
+    qDebug() << "awake failed";
 }
 
-// issue user cancel request
+/** issue user cancel request
+ */
 void SwiPrologEngine::cancel_running() {
     if (thid > 0) {
         qDebug() << "cancel_running";

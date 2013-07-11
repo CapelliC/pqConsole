@@ -20,45 +20,59 @@
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef PQTERM_H
-#define PQTERM_H
+#ifndef COMPLETION_H
+#define COMPLETION_H
 
-#include "pqConsole_global.h"
-#include <QObject>
-#include <SWI-cpp.h>
+#include <QCompleter>
+#include <QTextCursor>
+#include <QAbstractItemView>
 
-#define X PQCONSOLESHARED_EXPORT
-
-/** since SWI-Prolog doesn't allow inter thread terms exchange,
- *  this class could be required to truly distribute execution
- *  but after sketching it, I've not more used, or completed...
+/** service class, holds a sorted list of predicates for word completion
  */
-class X pqTerm : public QObject {
-    Q_OBJECT
+class Completion
+{
 public:
-    explicit pqTerm(QObject *parent = 0);
-    
+
+    /** load predicates into strings */
+    static void initialize(QStringList &strings);
+};
+
+#if 0
+
+/** service class, holds a sorted list of predicates for word completion
+ */
+class Completion : public QCompleter
+{
+    Q_OBJECT
+
+public:
+
+    /** default setup */
+    Completion(QWidget* owner);
+
+    /** release locals */
+    ~Completion();
+
+    /** load predicates to this model */
+    void initialize();
+
+    /** load predicates into strings */
+    static void initialize(QStringList &strings);
+
+    /** simpler usage pattern I found */
+    void capture(QTextCursor c);
+
+    /** for now, stick to hardcoded */
+    void display(QRect cr);
+
 signals:
     
 public slots:
     
+public:
+
+    QStringList *lpreds;
 };
+#endif
 
-/** mirror the very same hierarchy as PlTerm */
-class X pqFunctor : public QObject {};
-class X pqAtom : public QObject {};
-class X pqTermv : public QObject {};
-
-class X pqCompound : public pqTerm {};
-
-class X pqString : public pqTerm {};
-class X pqCodeList : public pqTerm {};
-class X pqCharList : public pqTerm {};
-
-class X pqException : public pqTerm {};
-class X pqTypeError : public pqException {};
-class X pqDomainError : public pqException {};
-class X pqResourceError : public pqException {};
-class X pqTermvDomainError : public pqException {};
-
-#endif // PQTERM_H
+#endif // COMPLETION_H

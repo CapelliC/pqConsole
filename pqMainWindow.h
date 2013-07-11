@@ -20,45 +20,49 @@
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef PQTERM_H
-#define PQTERM_H
+#ifndef PQMAINWINDOW_H
+#define PQMAINWINDOW_H
 
 #include "pqConsole_global.h"
-#include <QObject>
-#include <SWI-cpp.h>
+#include <QMainWindow>
 
-#define X PQCONSOLESHARED_EXPORT
+// forward declaration, avoid including all SWI-Prolog interface...
+class ConsoleEdit;
 
-/** since SWI-Prolog doesn't allow inter thread terms exchange,
- *  this class could be required to truly distribute execution
- *  but after sketching it, I've not more used, or completed...
+/** make a public top level widget
+ *  ready to handle proper termination of XPCE thread
  */
-class X pqTerm : public QObject {
+class PQCONSOLESHARED_EXPORT pqMainWindow : public QMainWindow
+{
     Q_OBJECT
+
 public:
-    explicit pqTerm(QObject *parent = 0);
-    
+
+    /** this is the mandatory constructor to get SWI-prolog embedding
+     *  and proper XPCE termination
+     */
+    pqMainWindow(int argc, char *argv[]);
+
+    /** default constructor
+     */
+    explicit pqMainWindow(QWidget *parent = 0);
+
+    /** load memory script
+     */
+    void set_script(QString name, QString text);
+
+    /** get access to the widget */
+    ConsoleEdit *console() const;
+
 signals:
     
 public slots:
     
+protected:
+
+    /** handle application closing, WRT XPCE termination */
+    virtual void closeEvent(QCloseEvent *event);
+
 };
 
-/** mirror the very same hierarchy as PlTerm */
-class X pqFunctor : public QObject {};
-class X pqAtom : public QObject {};
-class X pqTermv : public QObject {};
-
-class X pqCompound : public pqTerm {};
-
-class X pqString : public pqTerm {};
-class X pqCodeList : public pqTerm {};
-class X pqCharList : public pqTerm {};
-
-class X pqException : public pqTerm {};
-class X pqTypeError : public pqException {};
-class X pqDomainError : public pqException {};
-class X pqResourceError : public pqException {};
-class X pqTermvDomainError : public pqException {};
-
-#endif // PQTERM_H
+#endif // PQMAINWINDOW_H

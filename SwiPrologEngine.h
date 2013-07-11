@@ -30,10 +30,17 @@
 #include <QVariant>
 #include <QStringList>
 
+#include <SWI-cpp.h>
+
+#include <functional>
+
+/** 1. attempt to run generic code inter threads */
+typedef std::function<void()> pfunc;
+
 #include "pqConsole_global.h"
 
-// interface IO running SWI Prolog engine in background
-//
+/** interface IO running SWI Prolog engine in background
+ */
 class PQCONSOLESHARED_EXPORT SwiPrologEngine : public QThread {
     Q_OBJECT
 public:
@@ -41,37 +48,59 @@ public:
     explicit SwiPrologEngine(QObject *parent = 0);
     ~SwiPrologEngine();
 
-    // main console startup point
+    /** main console startup point */
     void start(int argc, char **argv);
 
-    // run query on background thread
+    /** run query on background thread */
     void query_run(QString text);
 
-    // issue user cancel request
+    /** run script on background thread */
+    void script_run(QString name, QString text);
+
+    /** issue user cancel request */
     void cancel_running();
 
-    // start/stop a Prolog engine in thread - use for syncronized GUI
-    struct in_thread { in_thread(); ~in_thread(); };
+    /** start/stop a Prolog engine in thread - use for syncronized GUI */
+    struct PQCONSOLESHARED_EXPORT in_thread {
+        in_thread();
+        ~in_thread();
+    private:
+        PlFrame *frame;
+    };
+
+    /** thread that started PL_toplevel */
+    static SwiPrologEngine* main() { return spe; }
+
+    /** utility: make public */
+    static void msleep(unsigned long n) { QThread::msleep(n); }
 
 signals:
 
-    // issued to queue a string to user output
+    /** issued to queue a string to user output */
     void user_output(QString output);
 
-    // issued to peek input - til to CR - from user
-    void user_prompt();
+    /** issued to peek input - til to CR - from user */
+    void user_prompt(int threadId);
 
-    // signal a query result
+    /** signal a query result */
     void query_result(QString query, int occurrence);
 
-    // signal query completed
+    /** signal query completed */
     void query_complete(QString query, int tot_occurrences);
 
-    // signal exception
+    /** signal exception */
     void query_exception(QString query, QString message);
 
+    /** 3. attempt to run generic code inter threads */
+    void sig_run_function(pfunc f);
+
 public slots:
-    void user_input(QString intput);
+
+    /** store string in buffer */
+    void user_input(QString input);
+
+    /** 2. attempt to run generic code inter threads */
+    void run_function(pfunc f) { f(); }
 
 protected:
     virtual void run();
@@ -83,15 +112,25 @@ protected:
     QByteArray buffer;
     QWaitCondition ready;
 
-    // queries to be dispatched to engine thread
-    QStringList queries;
+    /** queries to be dispatched to engine thread */
+    QList< QPair<QString, QString> > queries;
 
     static ssize_t _read_(void *handle, char *buf, size_t bufsize);
     static ssize_t _write_(void *handle, char *buf, size_t bufsize);
     ssize_t _read_(char *buf, size_t bufsize);
 
-    // background thread ID
+    /** Prolog (background) thread ID */
     int thid;
+
+    ssize_t _read_f(char *buf, size_t bufsize);
+
+private slots:
+    void awake();
+
+private:
+
+    /** main console singleton (thread constructed differently) */
+    static SwiPrologEngine* spe;
 };
 
 #endif // SWIPROLOGENGINE_H
