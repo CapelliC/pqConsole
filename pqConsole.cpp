@@ -42,6 +42,7 @@
 #include <QMenuBar>
 
 #include <QFileDialog>
+#include <QFontDialog>
 
 /** Run a default GUI to demo the ability to embed Prolog with minimal effort.
  *  It will evolve - eventually - from a demo
@@ -503,6 +504,39 @@ PREDICATE(getSaveFileName, 4) {
             A4 = A(Choice);
             return TRUE;
         }
+    }
+    return FALSE;
+}
+
+/** select_font
+ *  run Qt font selection
+ */
+PREDICATE(select_font, 0) { Q_UNUSED(_av);
+    ConsoleEdit* c = console_by_thread();
+    if (c) {
+        ConsoleEdit::exec_sync s;
+        c->exec_func([&]() {
+            bool ok;
+            QFont font = QFontDialog::getFont(&ok, QFont("Helvetica [Cronyx]", 10), c);
+            if (ok) {
+                c->change_font(font);
+            }
+            s.go();
+        });
+        s.stop();
+        return TRUE;
+    }
+    return FALSE;
+}
+
+/** quit_console
+ *  just issue termination to Qt application object
+ */
+PREDICATE(quit_console, 0) { Q_UNUSED(_av);
+    ConsoleEdit* c = console_by_thread();
+    if (c) {
+        c->exec_func([](){ qApp->quit(); });
+        return TRUE;
     }
     return FALSE;
 }

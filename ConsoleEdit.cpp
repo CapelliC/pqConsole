@@ -60,6 +60,10 @@ static QColor ANSI2col(int c, bool highlight = false) {
     return (highlight ? h : v)[c];
 }
 
+/** it's so simple ?
+ */
+static QFont cfont("courier");
+
 /** build command line interface to SWI Prolog engine
  *  this start the *primary* console
  */
@@ -123,7 +127,7 @@ void ConsoleEdit::setup() {
     // preset presentation attributes
     tcf.setForeground(ANSI2col(0));
     setLineWrapMode(ConsoleEditBase::NoWrap);
-    setFont(QFont("courier"));
+    setFont(cfont);
 
     connect(this, SIGNAL(cursorPositionChanged()), this, SLOT(onCursorPositionChanged()));
 
@@ -486,6 +490,16 @@ bool ConsoleEdit::can_close() {
     return !pce_running;
 }
 
+/** let user select a different font for this window
+ */
+void ConsoleEdit::change_font(QFont font) {
+    setFont(cfont = font);
+    /*
+    QTextCursor c = textCursor();
+    c.select(c.Document);
+    */
+}
+
 /** display different cursor where editing available
  */
 void ConsoleEdit::onCursorPositionChanged() {
@@ -533,7 +547,6 @@ void ConsoleEdit::onConsoleMenuAction() {
     QAction *a = qobject_cast<QAction *>(sender());
     if (a)
         command(a->toolTip());
-    //eng->query_run(a->toolTip());
 }
 
 /** place accepted Completer selection in editor

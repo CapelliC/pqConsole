@@ -72,10 +72,10 @@ public:
     /** closeEvent only called for top level widgets */
     bool can_close();
 
-    /** 3. attempt to run generic code inter threads */
+    /** 4. attempt to run generic code inter threads */
     void exec_func(pfunc f) { emit sig_run_function(f); }
 
-    /** 4. helper syncronization for modal loop */
+    /** 5. helper syncronization for modal loop */
     struct exec_sync {
         QMutex sync;
         QWaitCondition ready;
@@ -87,6 +87,9 @@ public:
             ready.wakeOne();
         }
     };
+
+    /** let user select a different font for this window */
+    void change_font(QFont font);
 
 protected:
 
