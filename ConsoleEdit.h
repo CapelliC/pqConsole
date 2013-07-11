@@ -89,7 +89,10 @@ public:
     };
 
     /** let user select a different font for this window */
-    void change_font(QFont font);
+    static PQCONSOLESHARED_EXPORT QFont curr_font;
+
+    /** let user configure wrap mode */
+    static PQCONSOLESHARED_EXPORT LineWrapMode wrap_mode;
 
 protected:
 

@@ -441,7 +441,7 @@ PREDICATE(console_settings, 1) {
         T opt;
         for (L opts(A1); opts.next(opt); ) {
             if (opt.arity() == 1) {
-                const char* name = opt.name();
+                CCP name = opt.name();
                 int pid = c->metaObject()->indexOfProperty(name);
                 if (pid >= 0)
                     unify(c->metaObject()->property(pid), c, opt[1]);
@@ -513,20 +513,18 @@ PREDICATE(getSaveFileName, 4) {
  */
 PREDICATE(select_font, 0) { Q_UNUSED(_av);
     ConsoleEdit* c = console_by_thread();
+    bool ok = false;
     if (c) {
         ConsoleEdit::exec_sync s;
         c->exec_func([&]() {
-            bool ok;
-            QFont font = QFontDialog::getFont(&ok, QFont("Helvetica [Cronyx]", 10), c);
-            if (ok) {
-                c->change_font(font);
-            }
+            QFont font = QFontDialog::getFont(&ok, ConsoleEdit::curr_font, c);
+            if (ok)
+                c->setFont(ConsoleEdit::curr_font = font);
             s.go();
         });
         s.stop();
-        return TRUE;
     }
-    return FALSE;
+    return ok;
 }
 
 /** quit_console
@@ -536,6 +534,18 @@ PREDICATE(quit_console, 0) { Q_UNUSED(_av);
     ConsoleEdit* c = console_by_thread();
     if (c) {
         c->exec_func([](){ qApp->quit(); });
+        return TRUE;
+    }
+    return FALSE;
+}
+
+/** change wrap mode
+ */
+PREDICATE(wrap_mode, 1) {
+    ConsoleEdit* c = console_by_thread();
+    if (c) {
+        long mode = A1;
+        c->exec_func([=](){ c->setLineWrapMode(ConsoleEdit::wrap_mode = ConsoleEdit::LineWrapMode(mode)); });
         return TRUE;
     }
     return FALSE;
