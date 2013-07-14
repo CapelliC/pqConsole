@@ -61,9 +61,9 @@ static QColor ANSI2col(int c, bool highlight = false) {
 }
 
 /** TBD configuration
- */
 QFont ConsoleEdit::curr_font("courier");
 ConsoleEditBase::LineWrapMode ConsoleEdit::wrap_mode = ConsoleEditBase::WidgetWidth;
+*/
 
 /** build command line interface to SWI Prolog engine
  *  this start the *primary* console
@@ -126,9 +126,11 @@ void ConsoleEdit::setup() {
     helpidx_status = untried;
 
     // preset presentation attributes
-    tcf.setForeground(ANSI2col(0));
-    setLineWrapMode(wrap_mode);
-    setFont(curr_font);
+    output_text_fmt.setForeground(ANSI2col(0));
+    input_text_fmt.setBackground(ANSI2col(7, true));
+
+    //setLineWrapMode(wrap_mode);
+    setFont(QFont("courier"));
 
     connect(this, SIGNAL(cursorPositionChanged()), this, SLOT(onCursorPositionChanged()));
 
@@ -181,6 +183,11 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         return;
 
     case Key_Home:
+        if (!ctrl && cp > fixedPosition) {
+            c.setPosition(fixedPosition, (event->modifiers() & SHIFT) ? c.KeepAnchor : c.MoveAnchor);
+            setTextCursor(c);
+            return;
+        }
     case Key_End:
     case Key_Left:
     case Key_Right:
@@ -189,8 +196,13 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         break;
 
     case Key_Return:
-        ret = accept = (cp >= fixedPosition && c.atEnd());
+        ret = cp >= fixedPosition;
+        if (ret) {
+            c.movePosition(c.End);
+            setTextCursor(c);
+        }
         break;
+
     case ';':
         if (cp == fixedPosition && c.atEnd())
             ret = true;
@@ -233,7 +245,7 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         return;
 
     case Key_C:
-    // case Key_Pause: I thought this one also work. It's not the case.
+    // case Key_Pause: I thought this one also work. It's not true.
         if (ctrl) {
             eng->cancel_running();
             break;
@@ -245,6 +257,7 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
     }
 
     if (accept) {
+
         ConsoleEditBase::keyPressEvent(event);
         if (on_completion) {
             c.select(QTextCursor::WordUnderCursor);
@@ -254,10 +267,12 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
     }
 
     if (ret) {
-        QString t = toPlainText();
-        int count = t.count() - fixedPosition;
-        QString cmd = t.right(count);
-        if (count > 1) {
+        c.setPosition(fixedPosition);
+        c.movePosition(c.End, c.KeepAnchor);
+        QString cmd = c.selectedText();
+        if (!cmd.isEmpty()) {
+            cmd.replace(cmd.length() - 1, 1, '\n');
+
             QString cmdc = cmd.left(cmd.length() - 1);
             if (!history.contains(cmdc)) {
                 history_next = history.count();
@@ -297,7 +312,6 @@ void ConsoleEdit::compinit(QTextCursor c) {
     if (!preds)
         initCompletion();
 
-    //c.select(QTextCursor::WordUnderCursor);
     c.movePosition(c.StartOfWord, c.KeepAnchor);
     preds->setCompletionPrefix(c.selectedText());
     preds->popup()->setCurrentIndex(preds->completionModel()->index(0, 0));
@@ -337,7 +351,7 @@ void ConsoleEdit::user_output(QString text) {
             Q_ASSERT(lcap.length() == 9); // match captures in eseq, 0 seems unrelated to paren
 
             // put 'out-of-band' text with current attribute, before changing it
-            c.insertText(text.mid(pos, pos1 - pos), tcf);
+            c.insertText(text.mid(pos, pos1 - pos), output_text_fmt);
 
             // map sequence to text attributes
             QFont::Weight w;
@@ -367,15 +381,15 @@ void ConsoleEdit::user_output(QString text) {
                 w = QFont::Normal;
                 c = ANSI2col(0);
             }
-            tcf.setFontWeight(w);
-            tcf.setForeground(c);
+            output_text_fmt.setFontWeight(w);
+            output_text_fmt.setForeground(c);
 
             pos = pos1 + skip + 2; // add the SCI
         }
-        c.insertText(text.mid(pos), tcf);
+        c.insertText(text.mid(pos), output_text_fmt);
     }
     else
-        c.insertText(text, tcf);
+        c.insertText(text, output_text_fmt);
 
     if (update_refresh_rate > 0 && ++count_output == update_refresh_rate) {
         count_output = 0;
@@ -402,7 +416,8 @@ void ConsoleEdit::user_prompt(int threadId) {
         helpidx_status = missing;
         SwiPrologEngine::in_thread _e;
         try {
-            if (PlCall("use_module(helpidx)") && PlCall("current_module(help_index)"))
+            if (PlCall("load_files(library(helpidx), [silent(true)])") &&
+                PlCall("current_module(help_index)"))
                 helpidx_status = available;
         }
         catch(PlException e) {
@@ -471,13 +486,15 @@ bool ConsoleEdit::can_close() {
     SwiPrologEngine::in_thread _e;
     bool pce_running = false;
     try {
-        T Id, Prop;
-        PlQuery q("thread_property", V(Id, Prop));
+        QString pce("pce"), status("status"), running("running");
+        PlTerm Id, Prop;
+        PlQuery q("thread_property", PlTermv(Id, Prop));
         while (q.next_solution())
-            if (    S(Id) == QString("pce") &&
-                    Prop.name() == QString("status") &&
-                    Prop[1].name() == QString("running"))
+            if (    S(Id) == pce &&
+                    Prop.name() == status &&
+                    Prop[1].name() == running)
                 pce_running = true;
+
         if (pce_running) {
             if (!PlCall("in_pce_thread(send(@pce, die, 0))"))
                 qDebug() << "XPCE fail to quit";
@@ -508,7 +525,6 @@ void ConsoleEdit::set_cursor_tip(QTextCursor c) {
     if (helpidx_status == available) {
         c.select(c.WordUnderCursor);
         QString w = c.selectedText();
-        //qDebug() << w;
         if (!w.isEmpty() && w != last_word) {
             last_word = w;
             SwiPrologEngine::in_thread tr;
@@ -536,8 +552,12 @@ void ConsoleEdit::set_cursor_tip(QTextCursor c) {
  */
 void ConsoleEdit::onConsoleMenuAction() {
     QAction *a = qobject_cast<QAction *>(sender());
-    if (a)
-        command(a->toolTip());
+    if (a) {
+        QString t = a->toolTip(),
+                module = t.left(t.indexOf(':')),
+                query = t.mid(t.indexOf(':') + 1);
+        eng->query_run(module, query);
+    }
 }
 
 /** place accepted Completer selection in editor

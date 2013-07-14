@@ -121,18 +121,22 @@ _wait_:
     // async query interface served from same thread
     if (!queries.empty()) {
         for ( ; !queries.empty(); ) {
-            QPair<QString, QString> p = queries.takeFirst();
-            QString n = p.first, t = p.second;
-            try {
-                Q_ASSERT(n.isEmpty());
-                PlQuery q("call", PlTermv(PlCompound(t.toUtf8())));
-                int occurrences = 0;
-                while (q.next_solution())
-                    emit query_result(t, ++occurrences);
-                emit query_complete(t, occurrences);
-            }
-            catch(PlException ex) {
-                emit query_exception(n, CCP(ex));
+            query p = queries.takeFirst();
+            Q_ASSERT(!p.is_script);
+            {
+                QString n = p.name, t = p.text;
+                try {
+                    //Q_ASSERT(n.isEmpty());
+                    PlQuery q(A(n), "call", PlTermv(PlCompound(t.toUtf8())));
+                    int occurrences = 0;
+                    while (q.next_solution())
+                        emit query_result(t, ++occurrences);
+                    emit query_complete(t, occurrences);
+                }
+                catch(PlException ex) {
+                    qDebug() << t << CCP(ex);
+                    emit query_exception(n, CCP(ex));
+                }
             }
         }
         goto _wait_;
@@ -173,19 +177,24 @@ void SwiPrologEngine::run() {
 }
 
 void SwiPrologEngine::query_run(QString text) {
-    queries.append(qMakePair(QString(), text));
+    queries.append(query{false, "", text});
+    ready.wakeOne();
+    //qDebug() << "query_run::wakeOne" << CVP(this) << CVP(CT);
+}
+void SwiPrologEngine::query_run(QString module, QString text) {
+    queries.append(query{false, module, text});
     ready.wakeOne();
     //qDebug() << "query_run::wakeOne" << CVP(this) << CVP(CT);
 }
 void SwiPrologEngine::script_run(QString name, QString text) {
     //qDebug() << "script_run" << CVP(spe) << CVP(CT);
-    queries.append(qMakePair(name, text));
+    queries.append(query{true, name, text});
     QTimer::singleShot(100, this, SLOT(awake()));
 }
 void SwiPrologEngine::awake() {
     Q_ASSERT(queries.count() == 1);
-    QPair<QString, QString> p = queries.takeFirst();
-    QString n = p.first, t = p.second;
+    query p = queries.takeFirst();
+    QString n = p.name, t = p.text;
     Q_ASSERT(!n.isEmpty());
     in_thread I;
     try {

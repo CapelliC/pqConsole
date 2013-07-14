@@ -111,6 +111,14 @@ static void unify(const QMetaProperty& p, QObject *o, PlTerm v) {
             v = p.read(o).toBool() ? A("true") : A("false");
             return;
         case QVariant::Int:
+            if (p.isEnumType()) {
+                Q_ASSERT(!p.isFlagType());  // TBD
+                QMetaEnum e = p.enumerator();
+                if (CCP key = e.valueToKey(p.read(o).toInt())) {
+                    v = A(key);
+                    return;
+                }
+            }
             v = long(p.read(o).toInt());
             return;
         case QVariant::UInt:
@@ -140,6 +148,15 @@ static void unify(const QMetaProperty& p, QObject *o, PlTerm v) {
         case QVariant::String:
             if (p.write(o, CCP(v)))
                 return;
+        case QVariant::Int:
+            if (p.isEnumType()) {
+                Q_ASSERT(!p.isFlagType());  // TBD
+                int i = p.enumerator().keyToValue(v);
+                if (i != -1) {
+                    p.write(o, i);
+                    return;
+                }
+            }
         default:
             break;
         }
@@ -247,10 +264,10 @@ PREDICATE(win_has_menu, 0) { Q_UNUSED(_av);
 /** MENU interface
  *  helper to lookup position and issue action creation
  */
-static void add_action(ConsoleEdit *ce, QMenu *mn, QString Label, QString Goal, QAction *before = 0) {
+static void add_action(ConsoleEdit *ce, QMenu *mn, QString Label, QString ctxtmod, QString Goal, QAction *before = 0) {
     auto a = new QAction(mn);
     a->setText(Label);
-    a->setToolTip(Goal);  // use as spare storage for :Goal
+    a->setToolTip(ctxtmod + ':' + Goal);  // use as spare storage for Module:Goal
     QObject::connect(a, SIGNAL(triggered()), ce, SLOT(onConsoleMenuAction()));
     if (before)
         mn->insertAction(before, a);
@@ -293,30 +310,35 @@ PREDICATE(win_insert_menu, 2) {
 PREDICATE(win_insert_menu_item, 4) {
     if (ConsoleEdit *ce = console_by_thread()) {
         QString Pulldown = CCP(A1), Label = CCP(A2), Before = CCP(A3), Goal = CCP(A4);
+
+        QString ctxtmod = CCP(PlAtom(PL_module_name(PL_context())));
+        // if (PlCall("context_module", cx)) ctxtmod = CCP(cx); -- same as above: system
+        ctxtmod = "win_menu";
+
         ce->exec_func([=]() {
             if (auto mw = qobject_cast<QMainWindow*>(ce->parentWidget())) {
                 foreach (QAction *ac, mw->menuBar()->actions())
                     if (ac->text() == Pulldown) {
                         QMenu *mn = ac->menu();
-                        if (Label != "-")
+                        if (Label != "--")
                             foreach (QAction *bc, ac->menu()->actions())
                                 if (bc->text() == Label) {
                                     bc->setToolTip(Goal);
                                     return;
                                 }
                         if (Before == "-") {
-                            if (Label == "-")
+                            if (Label == "--")
                                 mn->addSeparator();
                             else
-                                add_action(ce, mn, Label, Goal);
+                                add_action(ce, mn, Label, ctxtmod, Goal);
                             return;
                         }
                         foreach (QAction *bc, ac->menu()->actions())
                             if (bc->text() == Before) {
-                                if (Label == "-")
+                                if (Label == "--")
                                     mn->insertSeparator(bc);
                                 else
-                                    add_action(ce, mn, Label, Goal, bc);
+                                    add_action(ce, mn, Label, ctxtmod, Goal, bc);
                                 return;
                             }
                     }
@@ -349,7 +371,7 @@ PREDICATE(win_open_console, 5) {
 
     ConsoleEdit *ce = console_peek_first();
     if (!ce)
-        throw PlResourceError("no ConsoleEdit available");
+        throw PlException(A("no ConsoleEdit available"));
 
     static IOFUNCTIONS rlc_functions = {
         Swipl_IO::_read_f,
@@ -403,7 +425,7 @@ static QMap<int, QStringList> con2history;
 PREDICATE(rl_add_history, 1) {
     QStringList &l = con2history[PL_thread_self()];
     CCP line = A1;
-    if (*line && !l.contains(line))
+    if (*line) // && !l.contains(line))
         l.append(line);
     return TRUE;
 }
@@ -434,10 +456,14 @@ NAMED_PREDICATE($rl_history, rl_history, 1) {
  *
  *  maximumBlockCount(N) default 0
  *  - remove (from top) text lines when exceeding the limit
+ *
+ *  lineWrapMode(Mode) Mode --> 'NoWrap' | 'WidgetWidth'
+ *  - set/get current line wrapping. When is off, an horizontal scroll bar could display
  */
 PREDICATE(console_settings, 1) {
     ConsoleEdit* c = console_by_thread();
     if (c) {
+        PlFrame fr;
         T opt;
         for (L opts(A1); opts.next(opt); ) {
             if (opt.arity() == 1) {
@@ -446,10 +472,10 @@ PREDICATE(console_settings, 1) {
                 if (pid >= 0)
                     unify(c->metaObject()->property(pid), c, opt[1]);
                 else
-                    throw PlDomainError(opt[1]);
+                    throw PlException(A("property not found"));
             }
             else
-                throw PlTermvDomainError(opt.arity(), 1);
+                throw PlException(A("properties have arity 1"));
         }
         return TRUE;
     }
@@ -517,9 +543,9 @@ PREDICATE(select_font, 0) { Q_UNUSED(_av);
     if (c) {
         ConsoleEdit::exec_sync s;
         c->exec_func([&]() {
-            QFont font = QFontDialog::getFont(&ok, ConsoleEdit::curr_font, c);
+            QFont font = QFontDialog::getFont(&ok, c->font(), c);
             if (ok)
-                c->setFont(ConsoleEdit::curr_font = font);
+                c->setFont(font);
             s.go();
         });
         s.stop();
@@ -534,18 +560,6 @@ PREDICATE(quit_console, 0) { Q_UNUSED(_av);
     ConsoleEdit* c = console_by_thread();
     if (c) {
         c->exec_func([](){ qApp->quit(); });
-        return TRUE;
-    }
-    return FALSE;
-}
-
-/** change wrap mode
- */
-PREDICATE(wrap_mode, 1) {
-    ConsoleEdit* c = console_by_thread();
-    if (c) {
-        long mode = A1;
-        c->exec_func([=](){ c->setLineWrapMode(ConsoleEdit::wrap_mode = ConsoleEdit::LineWrapMode(mode)); });
         return TRUE;
     }
     return FALSE;

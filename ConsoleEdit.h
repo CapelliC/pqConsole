@@ -88,11 +88,11 @@ public:
         }
     };
 
-    /** let user select a different font for this window */
-    static PQCONSOLESHARED_EXPORT QFont curr_font;
+    /** let user select a different font for this window
+    static QFont curr_font; */
 
-    /** let user configure wrap mode */
-    static PQCONSOLESHARED_EXPORT LineWrapMode wrap_mode;
+    /** let user configure wrap mode
+    static LineWrapMode wrap_mode; */
 
 protected:
 
@@ -122,8 +122,8 @@ protected:
     /** sense word under cursor for tooltip display */
     virtual bool eventFilter(QObject *, QEvent *event);
 
-    /** output text attributes */
-    QTextCharFormat tcf;
+    /** output/input text attributes */
+    QTextCharFormat output_text_fmt, input_text_fmt;
 
     /** start point of engine output insertion */
     /** i.e. keep last user editable position */

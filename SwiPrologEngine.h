@@ -53,6 +53,7 @@ public:
 
     /** run query on background thread */
     void query_run(QString text);
+    void query_run(QString module, QString text);
 
     /** run script on background thread */
     void script_run(QString name, QString text);
@@ -113,7 +114,12 @@ protected:
     QWaitCondition ready;
 
     /** queries to be dispatched to engine thread */
-    QList< QPair<QString, QString> > queries;
+    struct query {
+        bool is_script;
+        QString name;
+        QString text;
+    };
+    QList<query> queries;
 
     static ssize_t _read_(void *handle, char *buf, size_t bufsize);
     static ssize_t _write_(void *handle, char *buf, size_t bufsize);
