@@ -125,8 +125,8 @@ _wait_:
             Q_ASSERT(!p.is_script);
             {
                 QString n = p.name, t = p.text;
+                qDebug() << "n:" << n << "t:" << t;
                 try {
-                    //Q_ASSERT(n.isEmpty());
                     PlQuery q(A(n), "call", PlTermv(PlCompound(t.toUtf8())));
                     int occurrences = 0;
                     while (q.next_solution())

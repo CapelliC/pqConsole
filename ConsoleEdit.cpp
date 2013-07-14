@@ -341,6 +341,7 @@ void ConsoleEdit::user_output(QString text) {
     // filter and apply (some) ANSI sequence
     int pos = text.indexOf('\e');
     if (pos >= 0) {
+        int left = 0;
         static QRegExp eseq("\e\\[(?:(3([0-7]);([01])m)|(0m)|(1m;)|1;3([0-7])m|(1m)|(?:3([0-7])m))");
         forever {
             int pos1 = eseq.indexIn(text, pos);
@@ -351,7 +352,8 @@ void ConsoleEdit::user_output(QString text) {
             Q_ASSERT(lcap.length() == 9); // match captures in eseq, 0 seems unrelated to paren
 
             // put 'out-of-band' text with current attribute, before changing it
-            c.insertText(text.mid(pos, pos1 - pos), output_text_fmt);
+            //c.insertText(text.mid(pos, pos1 - pos), output_text_fmt);
+            c.insertText(text.mid(left, pos1 - left), output_text_fmt);
 
             // map sequence to text attributes
             QFont::Weight w;
@@ -384,8 +386,9 @@ void ConsoleEdit::user_output(QString text) {
             output_text_fmt.setFontWeight(w);
             output_text_fmt.setForeground(c);
 
-            pos = pos1 + skip + 2; // add the SCI
+            left = pos = pos1 + skip + 2; // add the SCI
         }
+
         c.insertText(text.mid(pos), output_text_fmt);
     }
     else
@@ -489,11 +492,12 @@ bool ConsoleEdit::can_close() {
         QString pce("pce"), status("status"), running("running");
         PlTerm Id, Prop;
         PlQuery q("thread_property", PlTermv(Id, Prop));
-        while (q.next_solution())
+        while (q.next_solution()) {
             if (    S(Id) == pce &&
                     Prop.name() == status &&
                     Prop[1].name() == running)
                 pce_running = true;
+        }
 
         if (pce_running) {
             if (!PlCall("in_pce_thread(send(@pce, die, 0))"))
