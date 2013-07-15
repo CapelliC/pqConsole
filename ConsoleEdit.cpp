@@ -127,7 +127,9 @@ void ConsoleEdit::setup() {
 
     // preset presentation attributes
     output_text_fmt.setForeground(ANSI2col(0));
-    input_text_fmt.setBackground(ANSI2col(7, true));
+
+    input_text_fmt.setBackground(ANSI2col(6, true));
+    //input_text_fmt.setForeground(ANSI2col(3, true));
 
     //setLineWrapMode(wrap_mode);
     setFont(QFont("courier"));
@@ -258,7 +260,9 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
 
     if (accept) {
 
+        setCurrentCharFormat(input_text_fmt);
         ConsoleEditBase::keyPressEvent(event);
+
         if (on_completion) {
             c.select(QTextCursor::WordUnderCursor);
             preds->setCompletionPrefix(c.selectedText());
@@ -498,7 +502,6 @@ bool ConsoleEdit::can_close() {
                     Prop[1].name() == running)
                 pce_running = true;
         }
-
         if (pce_running) {
             if (!PlCall("in_pce_thread(send(@pce, die, 0))"))
                 qDebug() << "XPCE fail to quit";
@@ -533,26 +536,22 @@ void ConsoleEdit::onCursorPositionChanged() {
             parts = msg.capturedTexts();
         }
         */
-        if (parts.count() > 3) {
-            if (parts[0] == QString("Warning") || parts[0] == QString("ERROR")) {
-                int p = 1;
-                if (parts[p].length() == 2) {
-                    parts[p+1] = parts[p] + parts[p+1];
-                    ++p;
-                }
-                if (parts[p][0] == ' ') {
-                    QString path = parts[p].mid(1);
-                    bool is_numl;
-                    int numline = parts[p+1].toInt(&is_numl);
-                    if (is_numl)
-                        eng->query_run(QString("edit('%1':%2)").arg(path).arg(numline));
-                }
+        if (parts.count() > 3 && (parts[0] == QString("Warning") || parts[0] == QString("ERROR"))) {
+            int p = 1;
+            if (parts[p].length() == 2) { // Windoze paths: C:/ etc
+                parts[p+1] = parts[p] + parts[p+1];
+                ++p;
+            }
+            if (parts[p][0] == ' ') {
+                QString path = parts[p].mid(1);
+                bool is_numl;
+                int numline = parts[p+1].toInt(&is_numl);
+                if (is_numl)
+                    eng->query_run(QString("edit('%1':%2)").arg(path).arg(numline));
             }
         }
-
-    } else {
+    } else
         viewport()->setCursor(Qt::IBeamCursor);
-    }
 }
 
 /** setup tooltip info
