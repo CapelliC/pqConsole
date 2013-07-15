@@ -517,10 +517,42 @@ bool ConsoleEdit::can_close() {
 void ConsoleEdit::onCursorPositionChanged() {
     QTextCursor c = textCursor();
     set_cursor_tip(c);
-    if (fixedPosition > c.position())
+    if (fixedPosition > c.position()) {
         viewport()->setCursor(Qt::OpenHandCursor);
-    else
+
+        // attempt to jump on message location
+        c.movePosition(c.StartOfLine);
+        c.movePosition(c.EndOfLine, c.KeepAnchor);
+
+        QString line = c.selectedText();
+        QStringList parts = line.split(':');
+
+        /* using regex would be more elegant, but it's difficult to get it working properly...
+        static QRegExp msg("(ERROR|Warning):([^:]+):*$");
+        if (msg.exactMatch(line)) {
+            parts = msg.capturedTexts();
+        }
+        */
+        if (parts.count() > 3) {
+            if (parts[0] == QString("Warning") || parts[0] == QString("ERROR")) {
+                int p = 1;
+                if (parts[p].length() == 2) {
+                    parts[p+1] = parts[p] + parts[p+1];
+                    ++p;
+                }
+                if (parts[p][0] == ' ') {
+                    QString path = parts[p].mid(1);
+                    bool is_numl;
+                    int numline = parts[p+1].toInt(&is_numl);
+                    if (is_numl)
+                        eng->query_run(QString("edit('%1':%2)").arg(path).arg(numline));
+                }
+            }
+        }
+
+    } else {
         viewport()->setCursor(Qt::IBeamCursor);
+    }
 }
 
 /** setup tooltip info
