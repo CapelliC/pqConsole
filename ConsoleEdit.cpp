@@ -31,10 +31,8 @@
 #include <QEventLoop>
 #include <QAction>
 #include <QMainWindow>
-#include <QMenuBar>
 #include <QApplication>
 #include <QToolTip>
-#include <QFileDialog>
 
 /** some default color, seems sufficiently visible to me
  */
