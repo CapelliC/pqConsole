@@ -25,6 +25,7 @@
 
 #include "pqConsole_global.h"
 #include <QMainWindow>
+#include <QTabWidget>
 
 // forward declaration, avoid including all SWI-Prolog interface...
 class ConsoleEdit;
@@ -52,7 +53,10 @@ public:
     void set_script(QString name, QString text);
 
     /** get access to the widget */
-    ConsoleEdit *console() const;
+    ConsoleEdit *console(int thread = -1) const;
+
+    /** add a console: switch the interface to tabbed one */
+    void addConsole(ConsoleEdit *console, QString title);
 
 signals:
     
@@ -63,6 +67,8 @@ protected:
     /** handle application closing, WRT XPCE termination */
     virtual void closeEvent(QCloseEvent *event);
 
+    /** when there are more than a console, use a tabbed interface */
+    QTabWidget *consoles() const;
 };
 
 #endif // PQMAINWINDOW_H

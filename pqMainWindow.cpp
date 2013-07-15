@@ -54,6 +54,34 @@ void pqMainWindow::set_script(QString name, QString text) {
 
 /** get access to the widget
  */
-ConsoleEdit *pqMainWindow::console() const {
-    return qobject_cast<ConsoleEdit*>(centralWidget());
+ConsoleEdit *pqMainWindow::console(int thread) const {
+
+    if (!consoles()) {
+        // don't search
+        auto c = qobject_cast<ConsoleEdit*>(centralWidget());
+        return c->match_thread(thread) ? c : 0;
+    }
+
+    for (int i = 0; consoles()->count(); ++i) {
+        auto c = qobject_cast<ConsoleEdit*>(consoles()->widget(i));
+        if (c->match_thread(thread))
+            return c;
+    }
+
+    return 0;
+}
+
+QTabWidget *pqMainWindow::consoles() const {
+    return qobject_cast<QTabWidget*>(centralWidget());
+}
+
+void pqMainWindow::addConsole(ConsoleEdit *console, QString title) {
+    ConsoleEdit *c = qobject_cast<ConsoleEdit*>(centralWidget());
+    if (c) {
+        setCentralWidget(new QTabWidget(this));
+        consoles()->addTab(c, windowTitle());
+    }
+
+    consoles()->setTabsClosable(true);
+    consoles()->addTab(console, title);
 }

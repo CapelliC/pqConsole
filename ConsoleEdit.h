@@ -48,6 +48,9 @@ public:
     /** create in prolog thread - call win_open_console() */
     ConsoleEdit(Swipl_IO* io, QString Title);
 
+    /** create in prolog thread - from win_open_console(), add to tabbed interface */
+    ConsoleEdit(Swipl_IO* io);
+
     /** push command on queue */
     bool command(QString text);
 
@@ -57,7 +60,7 @@ public:
     /** a console is associated with a worker Prolog thread
      *  should handle the case of yet-to-be-initialized root console
      */
-    bool match_thread(int thread_id) const { return thid == thread_id || thid == -1; }
+    bool match_thread(int thread_id) const { return thid == thread_id || thid == -1 || thread_id == -1; }
 
     /** remove all text */
     void tty_clear();
@@ -87,12 +90,6 @@ public:
             ready.wakeOne();
         }
     };
-
-    /** let user select a different font for this window
-    static QFont curr_font; */
-
-    /** let user configure wrap mode
-    static LineWrapMode wrap_mode; */
 
 protected:
 
@@ -156,6 +153,7 @@ protected:
 
     /** wiring etc... */
     void setup();
+    void setup(Swipl_IO *iop);
 
     /** tooltips display, from helpidx.pl */
     enum { untried, available, missing } helpidx_status;

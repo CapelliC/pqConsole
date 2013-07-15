@@ -23,6 +23,7 @@
 #include "Swipl_IO.h"
 #include "PREDICATE.h"
 #include "Completion.h"
+#include "pqMainWindow.h"
 
 #include <QKeyEvent>
 #include <QRegExp>
@@ -94,6 +95,21 @@ ConsoleEdit::ConsoleEdit(int argc, char **argv, QWidget *parent)
 ConsoleEdit::ConsoleEdit(Swipl_IO* io, QString title)
     : ConsoleEditBase(), eng(0), io(io)
 {
+    auto w = new QMainWindow();
+    w->setCentralWidget(this);
+    w->setWindowTitle(title);
+    w->show();
+
+    setup(io);
+}
+
+ConsoleEdit::ConsoleEdit(Swipl_IO* io)
+    : ConsoleEditBase(), eng(0), io(io)
+{
+    setup(io);
+}
+
+void ConsoleEdit::setup(Swipl_IO* io) {
     io->host = this;
 
     setup();
@@ -102,11 +118,6 @@ ConsoleEdit::ConsoleEdit(Swipl_IO* io, QString title)
     connect(io, SIGNAL(user_output(QString)), this, SLOT(user_output(QString)));
     connect(io, SIGNAL(user_prompt(int)), this, SLOT(user_prompt(int)));
     connect(this, SIGNAL(user_input(QString)), io, SLOT(user_input(QString)));
-
-    auto w = new QMainWindow();
-    w->setCentralWidget(this);
-    w->setWindowTitle(title);
-    w->show();
 
     QTimer::singleShot(100, this, SLOT(attached()));
 }
@@ -130,7 +141,7 @@ void ConsoleEdit::setup() {
     //input_text_fmt.setForeground(ANSI2col(3, true));
 
     //setLineWrapMode(wrap_mode);
-    setFont(QFont("courier"));
+    setFont(QFont("courier", 12));
 
     connect(this, SIGNAL(cursorPositionChanged()), this, SLOT(onCursorPositionChanged()));
 
@@ -406,6 +417,9 @@ void ConsoleEdit::user_output(QString text) {
         QTimer::singleShot(1, &lp, SLOT(quit()));
         lp.exec();
     }
+
+    c.movePosition(c.End);
+    fixedPosition = c.position();
 }
 
 /** issue an input request
@@ -647,6 +661,13 @@ void ConsoleEdit::customEvent(QEvent *event) {
     Q_ASSERT(event->type() == QEvent::User);
     auto e = static_cast<req_new_console *>(event);
 
-    /* fire and forget :) auto ce = */
-    new ConsoleEdit(e->iop, e->title);
+    // multi tabbed interface:
+    pqMainWindow *mw = 0;
+    for (QWidget *w = parentWidget(); w && !mw; w = w->parentWidget())
+        mw = qobject_cast<pqMainWindow*>(w);
+
+    if (mw)
+        mw->addConsole(new ConsoleEdit(e->iop), e->title);
+    else    /* fire and forget :) auto ce = */
+        new ConsoleEdit(e->iop, e->title);
 }

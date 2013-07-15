@@ -188,9 +188,11 @@ PREDICATE(window_title, 2) {
     ConsoleEdit* c = console_by_thread();
     if (c) {
         QWidget *w = c->parentWidget();
-        A1 = A(w->windowTitle());
-        w->setWindowTitle(CCP(A2));
-        return TRUE;
+        if (qobject_cast<QMainWindow*>(w)) {
+            A1 = A(w->windowTitle());
+            w->setWindowTitle(CCP(A2));
+            return TRUE;
+        }
     }
     return FALSE;
 }
