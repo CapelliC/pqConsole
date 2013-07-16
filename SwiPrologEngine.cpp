@@ -166,6 +166,8 @@ void SwiPrologEngine::run() {
     Sinput->functions->read = _read_;
     Soutput->functions->write = _write_;
 
+    PL_set_prolog_flag("console_menu", PL_BOOL, TRUE);
+    PL_set_prolog_flag("console_menu_version", PL_ATOM, "qt");
     PlEngine e(argc, argv);
 
     for (int a = 0; a < argc; ++a)
