@@ -446,6 +446,7 @@ NAMED_PREDICATE($rl_history, rl_history, 1) {
         PlTail lines(A1);
         foreach(QString x, c->history_lines())
             lines.append(A(x));
+	lines.close();
         return TRUE;
     }
     return FALSE;
