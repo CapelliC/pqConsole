@@ -418,18 +418,17 @@ PREDICATE(win_open_console, 5) {
     return TRUE;
 }
 
-/** history support: keep a list for each console
- */
-static QMap<int, QStringList> con2history;
-
 /** append new command to history list for current console
  */
 PREDICATE(rl_add_history, 1) {
-    QStringList &l = con2history[PL_thread_self()];
-    CCP line = A1;
-    if (*line) // && !l.contains(line))
-        l.append(line);
-    return TRUE;
+    ConsoleEdit* c = console_by_thread();
+    if (c) {
+        CCP line = A1;
+        if (*line) // && !l.contains(line))
+            c->history_lines().append(line);
+        return TRUE;
+    }
+    return FALSE;
 }
 
 /** this should only be used as flag to enable processing ?
@@ -442,10 +441,14 @@ PREDICATE(rl_read_init_file, 1) {
 /** get history lines for this console
  */
 NAMED_PREDICATE($rl_history, rl_history, 1) {
-    L lines(A1);
-    foreach(QString x, con2history[PL_thread_self()])
-        lines.append(A(x));
-    return TRUE;
+    ConsoleEdit* c = console_by_thread();
+    if (c) {
+        PlTail lines(A1);
+        foreach(QString x, c->history_lines())
+            lines.append(A(x));
+        return TRUE;
+    }
+    return FALSE;
 }
 
 #undef PROLOG_MODULE
@@ -466,8 +469,8 @@ PREDICATE(console_settings, 1) {
     ConsoleEdit* c = console_by_thread();
     if (c) {
         PlFrame fr;
-        T opt;
-        for (L opts(A1); opts.next(opt); ) {
+        PlTerm opt;
+        for (PlTail opts(A1); opts.next(opt); ) {
             if (opt.arity() == 1) {
                 CCP name = opt.name();
                 int pid = c->metaObject()->indexOfProperty(name);

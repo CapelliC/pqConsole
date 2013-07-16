@@ -277,6 +277,12 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
             preds->setCompletionPrefix(c.selectedText());
             preds->popup()->setCurrentIndex(preds->completionModel()->index(0, 0));
         }
+        else {
+            // handle ^A+Del (clear buffer)
+            c.movePosition(c.End);
+            if (fixedPosition > c.position())
+                fixedPosition = c.position();
+        }
     }
 
     if (ret) {

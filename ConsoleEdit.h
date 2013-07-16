@@ -91,6 +91,9 @@ public:
         }
     };
 
+    /** give access to rl_... predicates */
+    QStringList& history_lines() { return history; }
+
 protected:
 
     /** host actual interface object, running in background */
