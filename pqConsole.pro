@@ -79,7 +79,8 @@ OTHER_FILES += \
     README.md \
     pqConsole.doxy \
     swipl.png \
-    console_input.pl
+    console_input.pl \
+    win_menu.pl
 
 RESOURCES += \
     pqConsole.qrc
