@@ -65,6 +65,10 @@ public:
     struct PQCONSOLESHARED_EXPORT in_thread {
         in_thread();
         ~in_thread();
+
+        /** run named <n> script <t> in current thread */
+        bool named_load(QString name, QString script);
+
     private:
         PlFrame *frame;
     };
@@ -74,6 +78,9 @@ public:
 
     /** utility: make public */
     static void msleep(unsigned long n) { QThread::msleep(n); }
+
+    /** attempt to run generic code inter threads */
+    void exec_func(pfunc f) { emit sig_run_function(f); }
 
 signals:
 
@@ -137,6 +144,9 @@ private:
 
     /** main console singleton (thread constructed differently) */
     static SwiPrologEngine* spe;
+    friend struct in_thread;
+
+    bool no_output;
 };
 
 #endif // SWIPROLOGENGINE_H

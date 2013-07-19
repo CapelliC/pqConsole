@@ -1,5 +1,6 @@
 <RCC>
     <qresource prefix="/">
         <file>swipl.png</file>
+        <file>console_input.pl</file>
     </qresource>
 </RCC>

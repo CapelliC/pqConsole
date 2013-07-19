@@ -92,7 +92,8 @@ public:
     };
 
     /** give access to rl_... predicates */
-    QStringList& history_lines() { return history; }
+    const QStringList& history_lines() { return history; }
+    void add_history_line(QString line);
 
 protected:
 
@@ -146,10 +147,11 @@ protected:
     /** will eventually become with help from the kernel */
     typedef QCompleter t_Completion;
     t_Completion *preds;
-    QStringList lpreds, lmodules;
+    QStringList lmodules;
 
     /** factorize code, attempt to get visual clue from QCompleter */
     void compinit(QTextCursor c);
+    void compinit2(QTextCursor c);
 
     /** associated thread id */
     int thid;
@@ -158,8 +160,7 @@ protected:
     void setup();
     void setup(Swipl_IO *iop);
 
-    /** tooltips display, from helpidx.pl */
-    enum { untried, available, missing } helpidx_status;
+    /** tooltips & completion support, from helpidx.pl */
     QString last_word, last_tip;
     void set_cursor_tip(QTextCursor c);
 
@@ -187,9 +188,6 @@ protected slots:
 
     /** push completion request in current command line */
     void insertCompletion(QString);
-
-    /** setup context info for completion */
-    void initCompletion();
 
     /** win_ ... API threaded construction: complete interactor setup */
     void attached();

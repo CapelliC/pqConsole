@@ -30,6 +30,7 @@
 #include "ConsoleEdit.h"
 #include "Swipl_IO.h"
 #include "PREDICATE.h"
+#include "do_events.h"
 
 #include <QApplication>
 #include <QMainWindow>
@@ -43,6 +44,7 @@
 
 #include <QFileDialog>
 #include <QFontDialog>
+#include <QClipboard>
 
 /** Run a default GUI to demo the ability to embed Prolog with minimal effort.
  *  It will evolve - eventually - from a demo
@@ -266,7 +268,7 @@ PREDICATE(win_has_menu, 0) { Q_UNUSED(_av);
 /** MENU interface
  *  helper to lookup position and issue action creation
  */
-static void add_action(ConsoleEdit *ce, QMenu *mn, QString Label, QString ctxtmod, QString Goal, QAction *before = 0) {
+static QAction* add_action(ConsoleEdit *ce, QMenu *mn, QString Label, QString ctxtmod, QString Goal, QAction *before = 0) {
     auto a = new QAction(mn);
     a->setText(Label);
     a->setToolTip(ctxtmod + ':' + Goal);  // use as spare storage for Module:Goal
@@ -275,6 +277,7 @@ static void add_action(ConsoleEdit *ce, QMenu *mn, QString Label, QString ctxtmo
         mn->insertAction(before, a);
     else
         mn->addAction(a);
+    return a;
 }
 
 /** win_insert_menu(+Label, +Before)
@@ -310,8 +313,10 @@ PREDICATE(win_insert_menu, 2) {
  *  does search insertion position and create menu item
  */
 PREDICATE(win_insert_menu_item, 4) {
+
     if (ConsoleEdit *ce = console_by_thread()) {
         QString Pulldown = CCP(A1), Label = CCP(A2), Before = CCP(A3), Goal = CCP(A4);
+        qDebug() << "win_insert_menu_item" << Pulldown << Label << Before << Goal;
 
         QString ctxtmod = CCP(PlAtom(PL_module_name(PL_context())));
         // if (PlCall("context_module", cx)) ctxtmod = CCP(cx); -- same as above: system
@@ -343,6 +348,9 @@ PREDICATE(win_insert_menu_item, 4) {
                                     add_action(ce, mn, Label, ctxtmod, Goal, bc);
                                 return;
                             }
+
+                        QAction *bc = add_action(ce, mn, Before, ctxtmod, "");
+                        add_action(ce, mn, Label, ctxtmod, Goal, bc);
                     }
             }
         });
@@ -424,8 +432,8 @@ PREDICATE(rl_add_history, 1) {
     ConsoleEdit* c = console_by_thread();
     if (c) {
         CCP line = A1;
-        if (*line) // && !l.contains(line))
-            c->history_lines().append(line);
+        if (*line)
+            c->add_history_line(line);
         return TRUE;
     }
     return FALSE;
@@ -446,7 +454,7 @@ NAMED_PREDICATE($rl_history, rl_history, 1) {
         PlTail lines(A1);
         foreach(QString x, c->history_lines())
             lines.append(A(x));
-	lines.close();
+        lines.close();
         return TRUE;
     }
     return FALSE;
@@ -566,6 +574,34 @@ PREDICATE(quit_console, 0) { Q_UNUSED(_av);
     ConsoleEdit* c = console_by_thread();
     if (c) {
         c->exec_func([](){ qApp->quit(); });
+        return TRUE;
+    }
+    return FALSE;
+}
+
+/** issue a copy to clipboard of current selection
+ */
+PREDICATE(copy, 0) { Q_UNUSED(_av);
+    ConsoleEdit* c = console_by_thread();
+    if (c) {
+        c->exec_func([=](){
+            QApplication::clipboard()->setText(c->textCursor().selectedText());
+            do_events();
+        });
+        return TRUE;
+    }
+    return FALSE;
+}
+
+/** issue a paste to clipboard of current selection
+ */
+PREDICATE(paste, 0) { Q_UNUSED(_av);
+    ConsoleEdit* c = console_by_thread();
+    if (c) {
+        c->exec_func([=](){
+            c->textCursor().insertText(QApplication::clipboard()->text());
+            do_events();
+        });
         return TRUE;
     }
     return FALSE;

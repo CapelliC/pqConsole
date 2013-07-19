@@ -28,7 +28,8 @@ SOURCES += \
     pqTerm.cpp \
     Completion.cpp \
     Swipl_IO.cpp \
-    pqMainWindow.cpp
+    pqMainWindow.cpp \
+    Preferences.cpp
 
 HEADERS += \
     pqConsole.h \
@@ -39,7 +40,9 @@ HEADERS += \
     pqTerm.h \
     Completion.h \
     Swipl_IO.h \
-    pqMainWindow.h
+    pqMainWindow.h \
+    Preferences.h \
+    do_events.h
 
 symbian {
     MMP_RULES += EXPORTUNFROZEN
@@ -75,7 +78,8 @@ windows {
 OTHER_FILES += \
     README.md \
     pqConsole.doxy \
-    swipl.png
+    swipl.png \
+    console_input.pl
 
 RESOURCES += \
     pqConsole.qrc

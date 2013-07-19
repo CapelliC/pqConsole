@@ -23,56 +23,35 @@
 #ifndef COMPLETION_H
 #define COMPLETION_H
 
+#include <QMap>
 #include <QCompleter>
 #include <QTextCursor>
 #include <QAbstractItemView>
 
 /** service class, holds a sorted list of predicates for word completion
  */
-class Completion
+struct Completion
 {
-public:
-
-    /** load predicates into strings */
-    static void initialize(QStringList &strings);
-};
-
-#if 0
-
-/** service class, holds a sorted list of predicates for word completion
- */
-class Completion : public QCompleter
-{
-    Q_OBJECT
-
-public:
-
-    /** default setup */
-    Completion(QWidget* owner);
-
-    /** release locals */
-    ~Completion();
-
-    /** load predicates to this model */
-    void initialize();
+    /** context sensitive completion */
+    static void initialize(QTextCursor cursor, QStringList &strings);
 
     /** load predicates into strings */
     static void initialize(QStringList &strings);
 
-    /** simpler usage pattern I found */
-    void capture(QTextCursor c);
+    /** tooltips display, from helpidx.pl */
+    enum status { untried, available, missing };
+    static status helpidx_status;
 
-    /** for now, stick to hardcoded */
-    void display(QRect cr);
+    /** predicate -> declarations */
+    typedef QList< QPair<int, QString> > t_decls;
+    typedef QMap<QString, t_decls> t_pred_docs;
+    static t_pred_docs pred_docs;
 
-signals:
-    
-public slots:
-    
-public:
+    /** initialize if required, return true if available */
+    static bool helpidx();
 
-    QStringList *lpreds;
+    /** access/compute predicate description tip from cached */
+    static QString pred_tip(QTextCursor c);
 };
-#endif
 
 #endif // COMPLETION_H

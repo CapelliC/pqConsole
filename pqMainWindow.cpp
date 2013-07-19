@@ -76,6 +76,7 @@ QTabWidget *pqMainWindow::consoles() const {
 }
 
 void pqMainWindow::addConsole(ConsoleEdit *console, QString title) {
+    /*
     ConsoleEdit *c = qobject_cast<ConsoleEdit*>(centralWidget());
     if (c) {
         setCentralWidget(new QTabWidget(this));
@@ -84,4 +85,14 @@ void pqMainWindow::addConsole(ConsoleEdit *console, QString title) {
 
     consoles()->setTabsClosable(true);
     consoles()->addTab(console, title);
+    */
+    QTabWidget *t = qobject_cast<QTabWidget*>(centralWidget());
+    if (!t) {
+        ConsoleEdit *c = qobject_cast<ConsoleEdit*>(centralWidget());
+        t = new QTabWidget;
+        t->setTabsClosable(true);
+        t->addTab(c, windowTitle());
+        setCentralWidget(t);
+    }
+    t->addTab(console, title);
 }

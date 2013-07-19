@@ -24,6 +24,8 @@
 #include "PREDICATE.h"
 #include "SwiPrologEngine.h"
 #include <QDebug>
+#include <QFile>
+#include <QTextStream>
 
 struct Bin : C { Bin(CCP op, T Left, T Right) : C(op, V(Left, Right)) {} };
 struct Uni : C { Uni(CCP op, T arg) : C(op, arg) {} };
@@ -38,41 +40,36 @@ struct arith : Bin { arith(T Pred, T Num) : Bin("/", Pred, Num) {} };
 #define one long(1)
 #define _V T()
 
-#if 0
-
-/** capture predicates
- *  ?- setof(P,M^A^(current_predicate(M:P/A), \+sub_atom(P,0,1,_,$)), L).
+/** context sensitive completion
+ *  take current line, give list of completions (both atoms and files)
+ *  thanks to Jan for crafting a proper interface wrapping SWI-Prolog available facilities
  */
-void Completion::initialize() {
-    initialize(*lpreds);
-    qDebug() << "initialize" << lpreds->count();
-    QAbstractItemModel *c = model();
-    qDebug() << CVP(c);
-    setModel(c);
-    //model.setStringList(strings);
-}
+void Completion::initialize(QTextCursor c, QStringList &strings) {
 
-Completion::Completion(QWidget* owner) :
-    QCompleter(*(lpreds = new QStringList))
-{
-    setWidget(owner);
-}
-Completion::~Completion() { delete lpreds; }
+    SwiPrologEngine::in_thread _int;
 
-/** simpler usage pattern I found */
-void Completion::capture(QTextCursor c) {
-    c.select(QTextCursor::WordUnderCursor);
-    setCompletionPrefix(c.selectedText());
-    popup()->setCurrentIndex(completionModel()->index(0, 0));
-}
+    try {
+        int p = c.position();
+        c.movePosition(c.StartOfWord, c.KeepAnchor);
+        QString left = c.selectedText();
+        PlString Before(left.toUtf8().constData());
 
-/** for now, stick to hardcoded */
-void Completion::display(QRect cr) {
-    cr.setWidth(300);
-    complete(cr);
-}
+        c.setPosition(p);
 
-#endif
+        c.movePosition(c.EndOfWord, c.KeepAnchor);
+        PlString After(c.selectedText().toUtf8().constData());
+
+        PlTerm Completions, word;
+        if (PlCall("prolog", "complete_input", PlTermv(Before, After, Completions)))
+            for (PlTail l(Completions); l.next(word); )
+                strings.append(left + CCP(word));
+
+        c.setPosition(p);
+    }
+    catch(PlException e) {
+        qDebug() << CCP(e);
+    }
+}
 
 /** issue a query filling the model storage
  *  this will change when I will learn how to call SWI-Prolog completion interface
@@ -81,19 +78,87 @@ void Completion::initialize(QStringList &strings) {
 
     SwiPrologEngine::in_thread _int;
     try {
-        T p,m,a,l,v;
+        PlTerm p,m,a,l,v;
         PlQuery q("setof",
-            V(p, quv(m,
-                     quv(a,
-                         join(C("current_predicate", mod(m, arith(p, a))),
-                              neg(C("sub_atom", V(p, zero, one, _V, A("$"))))
-                              ))),
-              l));
+            PlTermv(p,
+                quv(m,
+                    quv(a,
+                        join(PlCompound("current_predicate", mod(m, arith(p, a))),
+                            neg(C("sub_atom", PlTermv(p, zero, one, _V, A("$"))))
+                ))),
+            l));
         if (q.next_solution())
-            for (L x(l); x.next(v); )
+            for (PlTail x(l); x.next(v); )
                 strings.append(CCP(v));
     }
     catch(PlException e) {
         qDebug() << CCP(e);
     }
+}
+
+Completion::status Completion::helpidx_status = Completion::untried;
+Completion::t_pred_docs Completion::pred_docs;
+
+/** initialize and cache all predicates with description
+ */
+bool Completion::helpidx() {
+    if (helpidx_status == untried) {
+        helpidx_status = missing;
+        SwiPrologEngine::in_thread _e;
+        try {
+            if (    PlCall("load_files(library(helpidx), [silent(true)])") &&
+                    PlCall("current_module(help_index)"))
+            {
+                {   PlTerm Name, Arity, Descr, Start, Stop;
+                    PlQuery q("help_index", "predicate", V(Name, Arity, Descr, Start, Stop));
+                    while (q.next_solution()) {
+                        long arity = Arity.type() == PL_INTEGER ? long(Arity) : -1;
+                        QString name = CCP(Name);
+                        t_pred_docs::iterator x = pred_docs.find(name);
+                        if (x == pred_docs.end())
+                            x = pred_docs.insert(name, t_decls());
+                        x.value().append(qMakePair(int(arity), QString(CCP(Descr))));
+                    }
+                }
+
+                if (PlCall("load_files(library(console_input), [silent(true)])"))
+                    if (PlCall("current_module(prolog_console_input)"))
+                        helpidx_status = available;
+            }
+
+            /*
+            if (!PlCall("current_module(prolog_console_input)")) {
+                QString ci = "console_input.pl";
+                QFile f(QString(":/%1").arg(ci));
+                if (f.open(f.ReadOnly)) {
+                    QTextStream s(&f);
+                    if (!_e.named_load(ci, s.readAll()))
+                        qDebug() << "can't load" << ci;
+                }
+            }
+            */
+        }
+        catch(PlException e) {
+            qDebug() << CCP(e);
+        }
+    }
+
+    return helpidx_status == available && !pred_docs.isEmpty();
+}
+
+/** access/compute predicate description tip from cached
+ */
+QString Completion::pred_tip(QTextCursor c) {
+    if (helpidx_status == available) {
+        c.select(c.WordUnderCursor);
+        QString w =  c.selectedText();
+        auto p = pred_docs.constFind(w);
+        if (p != pred_docs.end()) {
+            QStringList l;
+            foreach(auto x, p.value())
+                l.append(QString("%1/%2:%3").arg(w).arg(x.first).arg(x.second));
+            return l.join("\n");
+        }
+    }
+    return "";
 }
