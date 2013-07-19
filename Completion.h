@@ -43,7 +43,8 @@ struct Completion
     static status helpidx_status;
 
     /** predicate -> declarations */
-    typedef QList< QPair<int, QString> > t_decls;
+    typedef QPair<int, QString> t_decl;
+    typedef QList<t_decl> t_decls;
     typedef QMap<QString, t_decls> t_pred_docs;
     static t_pred_docs pred_docs;
 

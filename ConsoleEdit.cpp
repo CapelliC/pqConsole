@@ -175,14 +175,12 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
 
     switch (k) {
 
-    /*
     case Key_Space:
         if (!on_completion && ctrl && cp >= fixedPosition) {
             compinit2(c);
             return;
         }
         break;
-    */
     case Key_Tab:
         if (!on_completion && !ctrl && cp >= fixedPosition) {
             compinit(c);
@@ -320,6 +318,9 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
  *  very clean, after removing (useless?) customcompleter sample code
  */
 void ConsoleEdit::insertCompletion(QString completion) {
+    int sep = completion.indexOf(" | ");
+    if (sep > 0)    // remove description
+        completion = completion.left(sep);
     int extra = completion.length() - preds->completionPrefix().length();
     textCursor().insertText(completion.right(extra));
 }
@@ -366,33 +367,46 @@ void ConsoleEdit::compinit(QTextCursor c) {
     preds->complete(cr);
 }
 
-/*
 void ConsoleEdit::compinit2(QTextCursor c) {
-    if (Completion::helpidx_status != Completion::available)
-        initCompletion();
-    else {
-        delete preds;
-        preds = 0;
 
-        lpreds.clear();
-        Completion::initialize(textCursor(), lpreds);
+    QStringList atoms;
+    Completion::initialize(textCursor(), atoms);
+    qDebug() << "compinit2" << "atoms" << atoms.count();
 
-        preds = new t_Completion(lpreds);
+    if (!preds) {
+        preds = new t_Completion(new QStringListModel());
         preds->setWidget(this);
         connect(preds, SIGNAL(activated(QString)), this, SLOT(insertCompletion(QString)));
-
-        qDebug() << "compinit2" << "lpreds" << lpreds.count();
-
-        c.movePosition(c.StartOfWord, c.KeepAnchor);
-        preds->setCompletionPrefix(c.selectedText());
-        preds->popup()->setCurrentIndex(preds->completionModel()->index(0, 0));
-
-        QRect cr = cursorRect();
-        cr.setWidth(400);
-        preds->complete(cr);
     }
+
+    QStringList lpreds;
+    foreach (auto a, atoms) {
+        auto p = Completion::pred_docs.constFind(a);
+        if (p != Completion::pred_docs.end())
+            foreach (auto d, p.value()) {
+                QStringList la;
+                for (int n = 0; n < d.first; ++n)
+                    la.append(QString('A' + n));
+                if (!la.isEmpty())
+                    lpreds.append(QString("%1(%2) | %3").arg(a).arg(la.join(", ")).arg(d.second));
+                else
+                    lpreds.append(QString("%1 | %2").arg(a).arg(d.second));
+            }
+        else
+            lpreds.append(a);
+    }
+
+    auto model = qobject_cast<QStringListModel*>(preds->model());
+    model->setStringList(lpreds);
+
+    c.movePosition(c.StartOfWord, c.KeepAnchor);
+    preds->setCompletionPrefix(c.selectedText());
+    preds->popup()->setCurrentIndex(preds->completionModel()->index(0, 0));
+
+    QRect cr = cursorRect();
+    cr.setWidth(400);
+    preds->complete(cr);
 }
-*/
 
 /** handle focus event to keep QCompleter happy
  */
