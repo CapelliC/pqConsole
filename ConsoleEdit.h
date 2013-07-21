@@ -92,7 +92,7 @@ public:
     };
 
     /** give access to rl_... predicates */
-    const QStringList& history_lines() { return history; }
+    const QStringList& history_lines() const { return history; }
     void add_history_line(QString line);
 
 protected:
@@ -163,6 +163,11 @@ protected:
     /** tooltips & completion support, from helpidx.pl */
     QString last_word, last_tip;
     void set_cursor_tip(QTextCursor c);
+
+    /** attempt to track *where* to place outpout */
+    enum e_status { idle, attaching, wait_input, running, closing };
+    e_status status;
+    int promptPosition;
 
 public slots:
 

@@ -125,6 +125,9 @@ void ConsoleEdit::setup(Swipl_IO* io) {
  */
 void ConsoleEdit::setup() {
 
+    status = idle;
+    promptPosition = -1;
+
     qApp->installEventFilter(this);
     thid = -1;
     count_output = 0;
@@ -134,7 +137,6 @@ void ConsoleEdit::setup() {
     // preset presentation attributes
     output_text_fmt.setForeground(ANSI2col(0));
     input_text_fmt.setBackground(ANSI2col(6, true));
-    //input_text_fmt.setForeground(ANSI2col(3, true));
 
     //setLineWrapMode(wrap_mode);
     setFont(QFont("courier", 12));
@@ -215,6 +217,8 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         }
         break;
 
+    // this ugly hack is necessary because I don't know
+    // when the engine is expecting a single char...
     case ';':
         if (cp == fixedPosition && c.atEnd()) {
             setCurrentCharFormat(input_text_fmt);
@@ -309,8 +313,10 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         // I don't understand why doesn't work (in thread), but the connected SLOT isn't called
         if (io)
             io->take_input(cmd);
-        else
+        else {
             emit user_input(cmd);
+            status = running;
+        }
     }
 }
 
@@ -345,7 +351,7 @@ void ConsoleEdit::compinit(QTextCursor c) {
         //lmodules = lmods;
 
         QStringList lpreds;
-        Completion::initialize(textCursor(), lpreds);
+        Completion::initialize(fixedPosition, textCursor(), lpreds);
 
         if (!preds) {
             preds = new t_Completion(new QStringListModel(lpreds));
@@ -370,7 +376,7 @@ void ConsoleEdit::compinit(QTextCursor c) {
 void ConsoleEdit::compinit2(QTextCursor c) {
 
     QStringList atoms;
-    Completion::initialize(textCursor(), atoms);
+    Completion::initialize(fixedPosition, textCursor(), atoms);
     qDebug() << "compinit2" << "atoms" << atoms.count();
 
     if (!preds) {
@@ -424,7 +430,21 @@ void ConsoleEdit::focusInEvent(QFocusEvent *e) {
 void ConsoleEdit::user_output(QString text) {
 
     QTextCursor c = textCursor();
-    c.movePosition(QTextCursor::End);
+    if (status == wait_input)
+        c.setPosition(promptPosition);
+    else {
+        promptPosition = c.position();  // save for later
+        c.movePosition(QTextCursor::End);
+    }
+
+    auto instext = [&](QString text) {
+        c.insertText(text, output_text_fmt);
+        if (status == wait_input) {
+            promptPosition += text.length();
+            fixedPosition += text.length();
+            ensureCursorVisible();
+        }
+    };
 
     // filter and apply (some) ANSI sequence
     int pos = text.indexOf('\e');
@@ -440,8 +460,7 @@ void ConsoleEdit::user_output(QString text) {
             Q_ASSERT(lcap.length() == 9); // match captures in eseq, 0 seems unrelated to paren
 
             // put 'out-of-band' text with current attribute, before changing it
-            //c.insertText(text.mid(pos, pos1 - pos), output_text_fmt);
-            c.insertText(text.mid(left, pos1 - left), output_text_fmt);
+            instext(text.mid(left, pos1 - left));
 
             // map sequence to text attributes
             QFont::Weight w;
@@ -477,40 +496,40 @@ void ConsoleEdit::user_output(QString text) {
             left = pos = pos1 + skip + 2; // add the SCI
         }
 
-        c.insertText(text.mid(pos), output_text_fmt);
+        instext(text.mid(pos));
     }
     else
-        c.insertText(text, output_text_fmt);
+        instext(text);
 
     if (update_refresh_rate > 0 && ++count_output == update_refresh_rate) {
         count_output = 0;
-        moveCursor(QTextCursor::End);
+        c.movePosition(c.End);
+        setTextCursor(c);
         ensureCursorVisible();
         repaint();
-
         do_events();
     }
-
-    c.movePosition(c.End);
-    fixedPosition = c.position();
 }
 
 /** issue an input request
  */
 void ConsoleEdit::user_prompt(int threadId) {
 
-    qDebug() << "user_prompt" << CVP(this) << threadId;
-
     Q_ASSERT(thid == -1 || thid == threadId);
-    if (thid == -1)
+    if (thid == -1) {
+        Q_ASSERT(status == idle);
         thid = threadId;
+    }
 
     Completion::helpidx();
 
     QTextCursor c = textCursor();
     c.movePosition(QTextCursor::End);
     fixedPosition = c.position();
+    setTextCursor(c);
     ensureCursorVisible();
+
+    status = wait_input;
 
     if (commands.count() > 0)
         QTimer::singleShot(1, this, SLOT(command_do()));
@@ -580,6 +599,9 @@ bool ConsoleEdit::can_close() {
  */
 void ConsoleEdit::onCursorPositionChanged() {
     QTextCursor c = textCursor();
+
+    //qDebug() << "onCursorPositionChanged" << c.position();
+
     set_cursor_tip(c);
     if (fixedPosition > c.position()) {
         viewport()->setCursor(Qt::OpenHandCursor);

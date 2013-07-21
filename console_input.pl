@@ -31,31 +31,38 @@
 	  [
 	  ]).
 :- use_module(library(lists)).
-:- use_module(library(apply)).
 
 :- multifile
-	prolog:complete_input/3.
+	prolog:complete_input/4.
 
-%%	prolog:complete_input(+BeforeCursor, +AfterCursor, -Completions) is det.
+%%	prolog:complete_input(+BeforeCursor, +AfterCursor,
+%%			      -Delete, -Completions) is det.
 %
-%	True when Completions is a list   of completions. The input line
-%	consists of BeforeCursor+AfterCursor, with   the  cursor located
-%	between the two strings.
+%	Compute    auto    completions    for      the     input    line
+%	BeforeCursor+AfterCursor.
+%
+%	@arg	Delete is an atom or string representing the text that is
+%		replaced by the completion
+%	@arg	Completions is a list of elements of this shape:
+%
+%		  - Atom
+%		  Used for a plain completion without comment
+%		  - Atom-Comment
+%		  Used for a completion with comment.  This will be
+%		  used for predicates.
 
-prolog:complete_input(Before, _After, Completions) :-
+prolog:complete_input(Before, _After, Delete, Completions) :-
 	string_to_list(Before, Chars),
 	reverse(Chars, BeforeRev),
-	complete(BeforeRev, Completions).
+	complete(BeforeRev, Delete, Completions).
 
-complete(BeforeRev, Completions) :-	% complete files
+complete(BeforeRev, Prefix, Files) :-	% complete files
 	phrase(file_prefix(Prefix), BeforeRev), !,
 	atom_concat(Prefix, '*', Pattern),
-	expand_file_name(Pattern, Files),
-	maplist(atom_concat(Prefix), Completions, Files).
-complete(BeforeRev, Completions) :-	% complete atoms
+	expand_file_name(Pattern, Files).
+complete(BeforeRev, Prefix, Atoms) :-	% complete atoms
 	phrase(atom_prefix(Prefix), BeforeRev), !,
-	'$atom_completions'(Prefix, Atoms),
-	maplist(atom_concat(Prefix), Completions, Atoms).
+	'$atom_completions'(Prefix, Atoms).
 
 %%	atom_prefix(-Prefix) is det.
 

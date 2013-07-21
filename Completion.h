@@ -33,7 +33,7 @@
 struct Completion
 {
     /** context sensitive completion */
-    static void initialize(QTextCursor cursor, QStringList &strings);
+    static void initialize(int promptPosition, QTextCursor cursor, QStringList &strings);
 
     /** load predicates into strings */
     static void initialize(QStringList &strings);

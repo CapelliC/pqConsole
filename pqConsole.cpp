@@ -316,7 +316,7 @@ PREDICATE(win_insert_menu_item, 4) {
 
     if (ConsoleEdit *ce = console_by_thread()) {
         QString Pulldown = CCP(A1), Label = CCP(A2), Before = CCP(A3), Goal = CCP(A4);
-        qDebug() << "win_insert_menu_item" << Pulldown << Label << Before << Goal;
+        //qDebug() << "win_insert_menu_item" << Pulldown << Label << Before << Goal;
 
         QString ctxtmod = CCP(PlAtom(PL_module_name(PL_context())));
         // if (PlCall("context_module", cx)) ctxtmod = CCP(cx); -- same as above: system
@@ -604,5 +604,12 @@ PREDICATE(paste, 0) { Q_UNUSED(_av);
         });
         return TRUE;
     }
+    return FALSE;
+}
+
+/** break looping
+ */
+PREDICATE(interrupt, 0) { Q_UNUSED(_av);
+    throw PlException(PlAtom("stop_req"));
     return FALSE;
 }
