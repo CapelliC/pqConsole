@@ -217,21 +217,6 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         }
         break;
 
-    // this ugly hack is necessary because I don't know
-    // when the engine is expecting a single char...
-        /*
-    case ';':
-        if (cp == fixedPosition && c.atEnd()) {
-            setCurrentCharFormat(input_text_fmt);
-            ConsoleEditBase::keyPressEvent(event);
-            emit user_input(";");
-            return;
-        }
-        else
-            accept = cp > fixedPosition;
-        break;
-        */
-
     case Key_Backspace:
         accept = cp > fixedPosition;
         break;
@@ -244,18 +229,27 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
             // naive history handler
             if (cp >= fixedPosition) {
                 if (!history.empty()) {
-                    accept = false;
+
                     c.setPosition(fixedPosition);
                     c.movePosition(c.End, c.KeepAnchor);
-                    c.removeSelectedText();
-                    if (history_next < history.count())
-                        c.insertText(history[history_next]);
+
+                    auto repc = [&](QString t) {
+                        c.removeSelectedText();
+                        c.insertText(t, input_text_fmt);
+                    };
+
                     if (down) {
-                        if (history_next < history.count())
-                            ++history_next;
-                    } else
-                        if (history_next > 0)
-                            --history_next;
+                        if (history_next < history.count() - 1)
+                            repc(history[++history_next]);
+                        else
+                            repc(history_spare);
+                    } else {
+                        if (history_next == history.count()) {
+                            history_spare = c.selectedText();
+                            repc(history[--history_next]);
+                        } else if (history_next > 0)
+                            repc(history[--history_next]);
+                    }
                     return;
                 }
             }
@@ -312,7 +306,7 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         cmd = c.selectedText();
         if (!cmd.isEmpty()) {
             cmd.replace(cmd.length() - 1, 1, '\n');
-
+            /*
             QString cmdc = cmd.left(cmd.length() - 1);
             if (!history.contains(cmdc)) {
                 history_next = history.count();
@@ -320,6 +314,8 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
             }
             else
                 history_next = history.count() - 1;
+            */
+            add_history_line(cmd.left(cmd.length() - 1));
         }
 
     _cmd_:
@@ -716,8 +712,7 @@ void ConsoleEdit::customEvent(QEvent *event) {
  */
 void ConsoleEdit::add_history_line(QString line)
 {
-    if (!history.contains(line)) {
-        history_next = history.count();
-        history.append(line);
-    }
+    history.append(line);
+    history_next = history.count();
+    history_spare.clear();
 }

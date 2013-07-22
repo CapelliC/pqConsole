@@ -136,6 +136,7 @@ protected:
     /** poor man command history */
     QStringList history;
     int history_next;
+    QString history_spare;
 
     /** count output before setting cursor at end */
     int count_output;

@@ -47,6 +47,7 @@ struct arith : Bin { arith(T Pred, T Num) : Bin("/", Pred, Num) {} };
 QString Completion::initialize(int promptPosition, QTextCursor c, QStringList &strings) {
 
     SwiPrologEngine::in_thread _int;
+    QString rets;
 
     try {
         int p = c.position();
@@ -67,11 +68,13 @@ QString Completion::initialize(int promptPosition, QTextCursor c, QStringList &s
                 strings.append(t2w(word));
 
         c.setPosition(p);
-        return t2w(Delete);
+        rets = t2w(Delete);
     }
     catch(PlException e) {
         qDebug() << CCP(e);
     }
+
+    return rets;
 }
 
 /** issue a query filling the model storage

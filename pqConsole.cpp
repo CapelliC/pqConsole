@@ -460,6 +460,21 @@ NAMED_PREDICATE($rl_history, rl_history, 1) {
     return FALSE;
 }
 
+/** attempt to overcome default tty_size/2
+ */
+PREDICATE(tty_size, 2) {
+    ConsoleEdit* c = console_by_thread();
+    if (c) {
+        QSize sz = c->fontMetrics().size(0, "Q");
+        long Rows = c->height() / sz.height();
+        long Cols = c->width() / sz.width();
+        A1 = Rows;
+        A2 = Cols;
+        return TRUE;
+    }
+    return FALSE;
+}
+
 #undef PROLOG_MODULE
 #define PROLOG_MODULE "pqConsole"
 
