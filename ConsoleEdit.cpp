@@ -241,8 +241,10 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
                     if (down) {
                         if (history_next < history.count() - 1)
                             repc(history[++history_next]);
-                        else
+                        else if (history_next == history.count() - 1) {
+                            ++history_next;
                             repc(history_spare);
+                        }
                     } else {
                         if (history_next == history.count()) {
                             history_spare = c.selectedText();
