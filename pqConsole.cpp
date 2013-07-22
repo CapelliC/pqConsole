@@ -431,9 +431,9 @@ PREDICATE(win_open_console, 5) {
 PREDICATE(rl_add_history, 1) {
     ConsoleEdit* c = console_by_thread();
     if (c) {
-        CCP line = A1;
+        WCP line = A1;
         if (*line)
-            c->add_history_line(line);
+            c->add_history_line(QString::fromWCharArray(line));
         return TRUE;
     }
     return FALSE;
@@ -452,8 +452,13 @@ NAMED_PREDICATE($rl_history, rl_history, 1) {
     ConsoleEdit* c = console_by_thread();
     if (c) {
         PlTail lines(A1);
-        foreach(QString x, c->history_lines())
-            lines.append(A(x));
+        foreach(QString x, c->history_lines()) {
+            wchar_t *w = new wchar_t[x.length() + 1];
+            w[x.toWCharArray(w)] = 0;
+            PlAtom W(w);
+            lines.append(W);
+            delete w;
+        }
         lines.close();
         return TRUE;
     }

@@ -80,7 +80,11 @@ public:
     static void msleep(unsigned long n) { QThread::msleep(n); }
 
     /** attempt to run generic code inter threads */
-    void exec_func(pfunc f) { emit sig_run_function(f); }
+    //void exec_func(pfunc f) { emit sig_run_function(f); }
+    void escape_func(pfunc f) { efunc = f; ready.wakeOne(); }
+    pfunc efunc;
+
+    static bool is_tty();
 
 signals:
 
@@ -88,7 +92,7 @@ signals:
     void user_output(QString output);
 
     /** issued to peek input - til to CR - from user */
-    void user_prompt(int threadId);
+    void user_prompt(int threadId, bool tty);
 
     /** signal a query result */
     void query_result(QString query, int occurrence);
@@ -100,7 +104,7 @@ signals:
     void query_exception(QString query, QString message);
 
     /** 3. attempt to run generic code inter threads */
-    void sig_run_function(pfunc f);
+    //void sig_run_function(pfunc f);
 
 public slots:
 
@@ -108,7 +112,7 @@ public slots:
     void user_input(QString input);
 
     /** 2. attempt to run generic code inter threads */
-    void run_function(pfunc f) { f(); }
+    //void run_function(pfunc f) { f(); }
 
 protected:
     virtual void run();

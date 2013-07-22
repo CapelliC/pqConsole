@@ -66,22 +66,6 @@ void Completion::initialize(int promptPosition, QTextCursor c, QStringList &stri
             for (PlTail l(Completions); l.next(word); )
                 strings.append(CCP(word));
 
-        /*
-        c.movePosition(c.StartOfWord, c.KeepAnchor);
-        QString left = c.selectedText();
-        PlString Before(left.toUtf8().constData());
-
-        c.setPosition(p);
-
-        c.movePosition(c.EndOfWord, c.KeepAnchor);
-        PlString After(c.selectedText().toUtf8().constData());
-
-        PlTerm Completions, word;
-        if (PlCall("prolog", "complete_input", PlTermv(Before, After, Completions)))
-            for (PlTail l(Completions); l.next(word); )
-                strings.append(left + CCP(word));
-        */
-
         c.setPosition(p);
     }
     catch(PlException e) {

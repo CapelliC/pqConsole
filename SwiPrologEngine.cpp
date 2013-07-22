@@ -20,10 +20,10 @@
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <SWI-Stream.h>
+#include <SWI-cpp.h>
 #include "SwiPrologEngine.h"
 #include "PREDICATE.h"
-#include <SWI-cpp.h>
-#include <SWI-Stream.h>
 #include <QtDebug>
 #include <signal.h>
 #include <QTimer>
@@ -36,6 +36,7 @@ SwiPrologEngine *SwiPrologEngine::spe;
  */
 SwiPrologEngine::SwiPrologEngine(QObject *parent)
     : QThread(parent),
+      efunc(0),
       argc(-1),
       thid(-1)
 {
@@ -51,6 +52,10 @@ SwiPrologEngine::~SwiPrologEngine() {
         bool ok = wait(1000);
         Q_ASSERT(ok);
     }
+}
+
+bool SwiPrologEngine::is_tty() {
+    return PL_ttymode(Suser_input) == PL_RAWTTY;
 }
 
 void SwiPrologEngine::start(int argc, char **argv) {
@@ -83,14 +88,24 @@ _wait_:
 
     //qDebug() << "POLL" << CVP(this) << CVP(CT);
 
-    emit user_prompt(PL_thread_self());
+    emit user_prompt(PL_thread_self(), is_tty());
     thid = -1;
+
+//_loop_:
 
     sync.lock();
     //bool x =
     ready.wait(&sync);
     //qDebug() << "ready" << x;
     sync.unlock();
+
+    /*
+    if (efunc) {
+        efunc();
+        qDebug() << "_loop_";
+        goto _loop_;
+    }
+    */
 
     if (!spe) // terminated
         return 0;

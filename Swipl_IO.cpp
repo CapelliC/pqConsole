@@ -83,7 +83,7 @@ ssize_t Swipl_IO::_read_(char *buf, size_t bufsize) {
     //qDebug() << "Swipl_IO::_read_" << CVP(this) << CVP(CT);
     PL_write_prompt(TRUE);
 
-    emit user_prompt(PL_thread_self());
+    emit user_prompt(PL_thread_self(), SwiPrologEngine::is_tty());
     ready.wait(&sync);
 
     //qDebug() << "Swipl_IO::AWAKE" << CVP(this) << CVP(CT);

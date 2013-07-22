@@ -74,10 +74,10 @@ ConsoleEdit::ConsoleEdit(int argc, char **argv, QWidget *parent)
 
     // wire up console IO
     connect(eng, SIGNAL(user_output(QString)), this, SLOT(user_output(QString)));
-    connect(eng, SIGNAL(user_prompt(int)), this, SLOT(user_prompt(int)));
+    connect(eng, SIGNAL(user_prompt(int, bool)), this, SLOT(user_prompt(int, bool)));
     connect(this, SIGNAL(user_input(QString)), eng, SLOT(user_input(QString)));
 
-    connect(eng, SIGNAL(sig_run_function(pfunc)), eng, SLOT(run_function(pfunc)));
+    //connect(eng, SIGNAL(sig_run_function(pfunc)), eng, SLOT(run_function(pfunc)));
 
     // issue worker thread start
     eng->start(argc, argv);
@@ -114,7 +114,7 @@ void ConsoleEdit::setup(Swipl_IO* io) {
 
     // wire up console IO
     connect(io, SIGNAL(user_output(QString)), this, SLOT(user_output(QString)));
-    connect(io, SIGNAL(user_prompt(int)), this, SLOT(user_prompt(int)));
+    connect(io, SIGNAL(user_prompt(int, bool)), this, SLOT(user_prompt(int, bool)));
     connect(this, SIGNAL(user_input(QString)), io, SLOT(user_input(QString)));
 
     QTimer::singleShot(100, this, SLOT(attached()));
@@ -219,6 +219,7 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
 
     // this ugly hack is necessary because I don't know
     // when the engine is expecting a single char...
+        /*
     case ';':
         if (cp == fixedPosition && c.atEnd()) {
             setCurrentCharFormat(input_text_fmt);
@@ -229,6 +230,7 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         else
             accept = cp > fixedPosition;
         break;
+        */
 
     case Key_Backspace:
         accept = cp > fixedPosition;
@@ -267,7 +269,8 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
     case Key_C:
     // case Key_Pause: I thought this one also work. It's not true.
         if (ctrl) {
-            eng->cancel_running();
+            if (eng)
+                eng->cancel_running();
             break;
         }
         // fall throu
@@ -275,6 +278,8 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
     default:
         accept = cp >= fixedPosition || event->matches(QKeySequence::Copy);
     }
+
+    QString cmd;
 
     if (accept) {
 
@@ -287,6 +292,12 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
             preds->popup()->setCurrentIndex(preds->completionModel()->index(0, 0));
         }
         else {
+
+            if (is_tty && c.atEnd()) {
+                cmd = QString(QChar(k));
+                goto _cmd_;
+            }
+
             // handle ^A+Del (clear buffer)
             c.movePosition(c.End);
             if (fixedPosition > c.position())
@@ -297,7 +308,7 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
     if (ret) {
         c.setPosition(fixedPosition);
         c.movePosition(c.End, c.KeepAnchor);
-        QString cmd = c.selectedText();
+        cmd = c.selectedText();
         if (!cmd.isEmpty()) {
             cmd.replace(cmd.length() - 1, 1, '\n');
 
@@ -310,13 +321,13 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
                 history_next = history.count() - 1;
         }
 
-        // I don't understand why doesn't work (in thread), but the connected SLOT isn't called
+    _cmd_:
         if (io)
             io->take_input(cmd);
-        else {
+        else
             emit user_input(cmd);
-            status = running;
-        }
+
+        status = running;
     }
 }
 
@@ -513,13 +524,15 @@ void ConsoleEdit::user_output(QString text) {
 
 /** issue an input request
  */
-void ConsoleEdit::user_prompt(int threadId) {
+void ConsoleEdit::user_prompt(int threadId, bool tty) {
 
     Q_ASSERT(thid == -1 || thid == threadId);
     if (thid == -1) {
         Q_ASSERT(status == idle);
         thid = threadId;
     }
+
+    is_tty = tty;
 
     Completion::helpidx();
 

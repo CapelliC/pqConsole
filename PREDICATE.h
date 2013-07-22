@@ -68,6 +68,7 @@
 /** shorten interface */
 
 typedef const char* CCP;
+typedef const wchar_t* WCP;
 typedef const void* CVP;
 #define CT QThread::currentThread()
 

@@ -31,7 +31,7 @@
 :- module(win_menu,
 	  [ init_win_menus/0
 	  ]).
-% :- set_prolog_flag(generate_debug_info, false).
+:- set_prolog_flag(generate_debug_info, false).
 :- op(200, fy, @).
 :- op(990, xfx, :=).
 
@@ -41,10 +41,7 @@ This library sets up the menu of  *swipl-win.exe*. It is called from the
 system initialisation file =plwin-win.rc=, predicate gui_setup_/0.
 */
 
-running_pqConsole :- current_prolog_flag(console_menu_version, qt).
-
-:- if(running_pqConsole).
-
+:- if(current_prolog_flag(console_menu_version, qt)).
 % The traditional swipl-win.exe predefines some menus.  The Qt version
 % does not.  Here, we predefine the same menus to make the remainder
 % compatiple.
@@ -67,21 +64,7 @@ menu('&Run',
        '&New thread' = new_thread
      ],
      []).
-
-menu('&File',
-     [ '&Consult ...' = consult_query_file,
-       '&Edit ...'    = edit_query_file,
-       '&New ...'     = new_query_file,
-       --,
-       '&Reload modified files' = user:make,
-       --,
-       '&Navigator ...' = prolog_ide(open_navigator),
-       --
-     ],
-     [ before_item('&Exit')
-     ]).
-
-:- else.
+:- endif.
 
 menu('&File',
      [ '&Consult ...' = action(user:consult(+file(open,
@@ -98,9 +81,6 @@ menu('&File',
      ],
      [ before_item('&Exit')
      ]).
-
-:- endif.
-
 menu('&Settings',
      [ --,
        '&User init file ...'  = prolog_edit_preferences(prolog),
@@ -182,11 +162,13 @@ insert_associated_file :-
 insert_associated_file.
 
 
+:- if(current_predicate(win_has_menu/0)).
 :- initialization
    (   win_has_menu
    ->  init_win_menus
    ;   true
    ).
+:- endif.
 
 		 /*******************************
 		 *	      ACTIONS		*
@@ -210,35 +192,6 @@ about :-
 	print_message(informational, about).
 
 
-:- if(running_pqConsole).
-
-		 /*******************************
-		 * use Qt File selection dialog *
-		 *******************************/
-
-source_types_desc('Prolog Source (*.pl *.pro)').
-
-%	issue file selection and simpy consult it.
-consult_query_file :-
-	source_types_desc(Spec),
-	pqConsole:getOpenFileName('Load file into Prolog', _, Spec, File),
-	consult(File).
-
-%	issue file selection, start XPCE and edit it.
-edit_query_file :-
-	source_types_desc(Spec),
-	pqConsole:getOpenFileName('Edit existing file', _, Spec, File),
-	call(edit(File)).
-
-%	prompt for a file name, check existence, start XPCE to edit.
-new_query_file :-
-	source_types_desc(Spec),
-        pqConsole:getSaveFileName('Create new Prolog source', _, Spec, File),
-        \+ exists_file(File),
-        call(edit(file(File))).
-
-:- endif.
-
 		 /*******************************
 		 *	 HANDLE CALLBACK	*
 		 *******************************/
@@ -257,6 +210,22 @@ gather_args([+H0|T0], [H|T]) :- !,
 gather_args([H|T0], [H|T]) :-
 	gather_args(T0, T).
 
+:- if(current_prolog_flag(console_menu_version, qt)).
+
+gather_arg(file(open, Title), File) :- !,
+	source_types_desc(Desc),
+	pqConsole:getOpenFileName(Title, _, Desc, File).
+gather_arg(file(save, Title), File) :-
+	source_types_desc(Desc),
+	pqConsole:getSaveFileName(Title, _, Desc, File).
+
+source_types_desc(Desc) :-
+	findall(Pattern, prolog_file_pattern(Pattern), Patterns),
+	atomic_list_concat(Patterns, ' ', Atom),
+	format(atom(Desc), 'Prolog Source (~w)', [Atom]).
+
+:- else.
+
 gather_arg(file(Mode, Title), File) :-
 	findall(tuple('Prolog Source', Pattern),
 		prolog_file_pattern(Pattern),
@@ -270,6 +239,8 @@ gather_arg(file(Mode, Title), File) :-
 		 directory := CWD,
 		 owner := HWND,
 		 File)).
+
+:- endif.
 
 prolog_file_pattern(Pattern) :-
 	user:prolog_file_type(Ext, prolog),

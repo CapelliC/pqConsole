@@ -168,6 +168,7 @@ protected:
     enum e_status { idle, attaching, wait_input, running, closing };
     e_status status;
     int promptPosition;
+    bool is_tty;
 
 public slots:
 
@@ -186,7 +187,7 @@ protected slots:
     void user_output(QString text);
 
     /** issue an input request */
-    void user_prompt(int threadId);
+    void user_prompt(int threadId, bool tty);
 
     /** push command from queue to Prolog processor */
     void command_do();
