@@ -75,7 +75,15 @@ typedef const void* CVP;
 #include <QString>
 
 inline CCP S(const PlTerm &T) { return T; }
+
 inline PlAtom A(QString s) { QByteArray a = s.toUtf8(); return PlAtom(a.constData()); }
+inline PlAtom W(QString s) {
+    wchar_t *w = new wchar_t[s.length() + 1];
+    w[s.toWCharArray(w)] = 0;
+    PlAtom a(w);
+    delete w;
+    return a;
+}
 
 typedef PlTerm T;
 typedef PlTermv V;

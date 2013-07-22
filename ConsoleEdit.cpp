@@ -294,8 +294,9 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         else {
 
             if (is_tty && c.atEnd()) {
-                cmd = QString(QChar(k));
-                goto _cmd_;
+                cmd = event->text();
+                if (!cmd.isEmpty())
+                    goto _cmd_;
             }
 
             // handle ^A+Del (clear buffer)

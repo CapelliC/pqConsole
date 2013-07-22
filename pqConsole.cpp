@@ -452,13 +452,8 @@ NAMED_PREDICATE($rl_history, rl_history, 1) {
     ConsoleEdit* c = console_by_thread();
     if (c) {
         PlTail lines(A1);
-        foreach(QString x, c->history_lines()) {
-            wchar_t *w = new wchar_t[x.length() + 1];
-            w[x.toWCharArray(w)] = 0;
-            PlAtom W(w);
-            lines.append(W);
-            delete w;
-        }
+        foreach(QString x, c->history_lines())
+            lines.append(W(x));
         lines.close();
         return TRUE;
     }
