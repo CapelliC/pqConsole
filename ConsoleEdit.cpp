@@ -358,26 +358,22 @@ void ConsoleEdit::compinit(QTextCursor c) {
     }
     */
 
-    //if (!preds || lmods != lmodules)
-    {
-        //lmodules = lmods;
+    QStringList lpreds;
+    QString prefix = Completion::initialize(fixedPosition, c, lpreds);
 
-        QStringList lpreds;
-        Completion::initialize(fixedPosition, textCursor(), lpreds);
-
-        if (!preds) {
-            preds = new t_Completion(new QStringListModel(lpreds));
-            preds->setWidget(this);
-            connect(preds, SIGNAL(activated(QString)), this, SLOT(insertCompletion(QString)));
-        }
-        else {
-            auto model = qobject_cast<QStringListModel*>(preds->model());
-            model->setStringList(lpreds);
-        }
+    if (!preds) {
+        preds = new t_Completion(new QStringListModel(lpreds));
+        preds->setWidget(this);
+        connect(preds, SIGNAL(activated(QString)), this, SLOT(insertCompletion(QString)));
+    }
+    else {
+        auto model = qobject_cast<QStringListModel*>(preds->model());
+        model->setStringList(lpreds);
     }
 
-    c.movePosition(c.StartOfWord, c.KeepAnchor);
-    preds->setCompletionPrefix(c.selectedText());
+    //c.movePosition(c.StartOfWord, c.KeepAnchor);
+    //preds->setCompletionPrefix(c.selectedText());
+    preds->setCompletionPrefix(prefix);
     preds->popup()->setCurrentIndex(preds->completionModel()->index(0, 0));
 
     QRect cr = cursorRect();
@@ -388,8 +384,7 @@ void ConsoleEdit::compinit(QTextCursor c) {
 void ConsoleEdit::compinit2(QTextCursor c) {
 
     QStringList atoms;
-    Completion::initialize(fixedPosition, textCursor(), atoms);
-    qDebug() << "compinit2" << "atoms" << atoms.count();
+    QString prefix = Completion::initialize(fixedPosition, c, atoms);
 
     if (!preds) {
         preds = new t_Completion(new QStringListModel());
@@ -417,8 +412,9 @@ void ConsoleEdit::compinit2(QTextCursor c) {
     auto model = qobject_cast<QStringListModel*>(preds->model());
     model->setStringList(lpreds);
 
-    c.movePosition(c.StartOfWord, c.KeepAnchor);
-    preds->setCompletionPrefix(c.selectedText());
+    //c.movePosition(c.StartOfWord, c.KeepAnchor);
+    //preds->setCompletionPrefix(c.selectedText());
+    preds->setCompletionPrefix(prefix);
     preds->popup()->setCurrentIndex(preds->completionModel()->index(0, 0));
 
     QRect cr = cursorRect();

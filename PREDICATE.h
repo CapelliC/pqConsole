@@ -85,6 +85,10 @@ inline PlAtom W(QString s) {
     return a;
 }
 
+inline QString t2w(PlTerm t) {
+    return QString::fromWCharArray(WCP(t));
+}
+
 typedef PlTerm T;
 typedef PlTermv V;
 typedef PlCompound C;

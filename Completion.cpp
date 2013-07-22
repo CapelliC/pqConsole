@@ -44,7 +44,7 @@ struct arith : Bin { arith(T Pred, T Num) : Bin("/", Pred, Num) {} };
  *  take current line, give list of completions (both atoms and files)
  *  thanks to Jan for crafting a proper interface wrapping SWI-Prolog available facilities
  */
-void Completion::initialize(int promptPosition, QTextCursor c, QStringList &strings) {
+QString Completion::initialize(int promptPosition, QTextCursor c, QStringList &strings) {
 
     SwiPrologEngine::in_thread _int;
 
@@ -64,9 +64,10 @@ void Completion::initialize(int promptPosition, QTextCursor c, QStringList &stri
         PlTerm Completions, Delete, word;
         if (PlCall("prolog", "complete_input", PlTermv(Before, After, Delete, Completions)))
             for (PlTail l(Completions); l.next(word); )
-                strings.append(CCP(word));
+                strings.append(t2w(word));
 
         c.setPosition(p);
+        return t2w(Delete);
     }
     catch(PlException e) {
         qDebug() << CCP(e);
