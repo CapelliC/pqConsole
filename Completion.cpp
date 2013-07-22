@@ -119,11 +119,11 @@ bool Completion::helpidx() {
                     PlQuery q("help_index", "predicate", V(Name, Arity, Descr, Start, Stop));
                     while (q.next_solution()) {
                         long arity = Arity.type() == PL_INTEGER ? long(Arity) : -1;
-                        QString name = CCP(Name);
+                        QString name = t2w(Name);
                         t_pred_docs::iterator x = pred_docs.find(name);
                         if (x == pred_docs.end())
                             x = pred_docs.insert(name, t_decls());
-                        x.value().append(qMakePair(int(arity), QString(CCP(Descr))));
+                        x.value().append(qMakePair(int(arity), t2w(Descr)));
                     }
                 }
 

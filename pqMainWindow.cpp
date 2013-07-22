@@ -71,28 +71,34 @@ ConsoleEdit *pqMainWindow::console(int thread) const {
     return 0;
 }
 
+/** qualify widget type
+ */
 QTabWidget *pqMainWindow::consoles() const {
     return qobject_cast<QTabWidget*>(centralWidget());
 }
 
+/** switch the interface to tabbed on creation of second (and subsequent) console
+ */
 void pqMainWindow::addConsole(ConsoleEdit *console, QString title) {
-    /*
-    ConsoleEdit *c = qobject_cast<ConsoleEdit*>(centralWidget());
-    if (c) {
-        setCentralWidget(new QTabWidget(this));
-        consoles()->addTab(c, windowTitle());
-    }
-
-    consoles()->setTabsClosable(true);
-    consoles()->addTab(console, title);
-    */
-    QTabWidget *t = qobject_cast<QTabWidget*>(centralWidget());
+    auto t = consoles();
     if (!t) {
-        ConsoleEdit *c = qobject_cast<ConsoleEdit*>(centralWidget());
+        auto c = qobject_cast<ConsoleEdit*>(centralWidget());
         t = new QTabWidget;
         t->setTabsClosable(true);
-        t->addTab(c, windowTitle());
+        QString T = windowTitle();
+        if (T.isEmpty())
+            T = "swipl";
+        t->addTab(c, T);
         setCentralWidget(t);
+        connect(t, SIGNAL(tabCloseRequested(int)), this, SLOT(tabCloseRequested(int)));
     }
     t->addTab(console, title);
+}
+
+/** handle the close button, issuing console request and removing from tab
+ */
+void pqMainWindow::tabCloseRequested(int tabId) {
+    auto c = qobject_cast<ConsoleEdit*>(consoles()->widget(tabId));
+    if (c->can_close())
+        consoles()->removeTab(tabId);
 }

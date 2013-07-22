@@ -61,7 +61,10 @@ public:
 signals:
     
 public slots:
-    
+
+    /** handle the close button on tabbed interface */
+    void tabCloseRequested(int tabId);
+
 protected:
 
     /** handle application closing, WRT XPCE termination */

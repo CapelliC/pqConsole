@@ -86,31 +86,15 @@ ssize_t SwiPrologEngine::_read_(char *buf, size_t bufsize) {
 
 _wait_:
 
-    //qDebug() << "POLL" << CVP(this) << CVP(CT);
-
     emit user_prompt(PL_thread_self(), is_tty());
     thid = -1;
 
-//_loop_:
-
     sync.lock();
-    //bool x =
     ready.wait(&sync);
-    //qDebug() << "ready" << x;
     sync.unlock();
-
-    /*
-    if (efunc) {
-        efunc();
-        qDebug() << "_loop_";
-        goto _loop_;
-    }
-    */
 
     if (!spe) // terminated
         return 0;
-
-    //qDebug() << "AWAKE" << x << CVP(this) << CVP(CT);
 
     // tag status running - and interruptable
     thid = PL_thread_self();
@@ -186,21 +170,21 @@ void SwiPrologEngine::run() {
 /** push an unnamed query, then issue delayed execution
  */
 void SwiPrologEngine::query_run(QString text) {
-    queries.append(query{false, "", text});
+    queries.append(query {false, "", text});
     ready.wakeOne();
 }
 
 /** push a named query, then issue delayed execution
  */
 void SwiPrologEngine::query_run(QString module, QString text) {
-    queries.append(query{false, module, text});
+    queries.append(query {false, module, text});
     ready.wakeOne();
 }
 
 /** allows to run a delayed script from resource at startup
  */
 void SwiPrologEngine::script_run(QString name, QString text) {
-    queries.append(query{true, name, text});
+    queries.append(query {true, name, text});
     QTimer::singleShot(100, this, SLOT(awake()));
 }
 void SwiPrologEngine::awake() {

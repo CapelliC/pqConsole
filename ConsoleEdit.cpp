@@ -596,6 +596,9 @@ bool ConsoleEdit::can_close() {
                 break;
             SwiPrologEngine::msleep(500);
         }
+    } else if (io) {
+        io->take_input("end_of_file.\n");
+        SwiPrologEngine::msleep(500);
     }
     return quit;
 }
