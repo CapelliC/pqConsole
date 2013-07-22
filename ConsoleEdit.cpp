@@ -78,6 +78,7 @@ ConsoleEdit::ConsoleEdit(int argc, char **argv, QWidget *parent)
     connect(this, SIGNAL(user_input(QString)), eng, SLOT(user_input(QString)));
 
     //connect(eng, SIGNAL(sig_run_function(pfunc)), eng, SLOT(run_function(pfunc)));
+    connect(eng, SIGNAL(finished()), this, SLOT(eng_completed()));
 
     // issue worker thread start
     eng->start(argc, argv);
@@ -174,6 +175,7 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
     bool ctrl = event->modifiers() == CTRL;
     bool accept = true, ret = false, down = true;
     int cp = c.position(), k = event->key();
+    QString cmd;
 
     switch (k) {
 
@@ -262,6 +264,16 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         setTextCursor(c);
         return;
 
+    case Key_D:
+        if (cp >= fixedPosition) {
+            if (ctrl) {
+                cmd = "end_of_file.\n";
+                goto _cmd_;
+            }
+            accept = true;
+        }
+        break;
+
     case Key_C:
     // case Key_Pause: I thought this one also work. It's not true.
         if (ctrl) {
@@ -274,8 +286,6 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
     default:
         accept = cp >= fixedPosition || event->matches(QKeySequence::Copy);
     }
-
-    QString cmd;
 
     if (accept) {
 
@@ -308,15 +318,6 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         cmd = c.selectedText();
         if (!cmd.isEmpty()) {
             cmd.replace(cmd.length() - 1, 1, '\n');
-            /*
-            QString cmdc = cmd.left(cmd.length() - 1);
-            if (!history.contains(cmdc)) {
-                history_next = history.count();
-                history.append(cmd.left(cmd.length() - 1));
-            }
-            else
-                history_next = history.count() - 1;
-            */
             add_history_line(cmd.left(cmd.length() - 1));
         }
 
@@ -369,8 +370,6 @@ void ConsoleEdit::compinit(QTextCursor c) {
         model->setStringList(lpreds);
     }
 
-    //c.movePosition(c.StartOfWord, c.KeepAnchor);
-    //preds->setCompletionPrefix(c.selectedText());
     preds->setCompletionPrefix(prefix);
     preds->popup()->setCurrentIndex(preds->completionModel()->index(0, 0));
 
@@ -410,8 +409,6 @@ void ConsoleEdit::compinit2(QTextCursor c) {
     auto model = qobject_cast<QStringListModel*>(preds->model());
     model->setStringList(lpreds);
 
-    //c.movePosition(c.StartOfWord, c.KeepAnchor);
-    //preds->setCompletionPrefix(c.selectedText());
     preds->setCompletionPrefix(prefix);
     preds->popup()->setCurrentIndex(preds->completionModel()->index(0, 0));
 
@@ -608,8 +605,6 @@ bool ConsoleEdit::can_close() {
 void ConsoleEdit::onCursorPositionChanged() {
     QTextCursor c = textCursor();
 
-    //qDebug() << "onCursorPositionChanged" << c.position();
-
     set_cursor_tip(c);
     if (fixedPosition > c.position()) {
         viewport()->setCursor(Qt::OpenHandCursor);
@@ -717,4 +712,13 @@ void ConsoleEdit::add_history_line(QString line)
     history.append(line);
     history_next = history.count();
     history_spare.clear();
+}
+
+/** when engine gracefully complete-... */
+void ConsoleEdit::eng_completed() {
+    if (eng)
+        qApp->quit();
+    else if (io) {
+        qDebug() << "eng_completed";
+    }
 }

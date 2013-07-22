@@ -199,6 +199,9 @@ protected slots:
     /** win_ ... API threaded construction: complete interactor setup */
     void attached();
 
+    /** when engine gracefully complete-... */
+    void eng_completed();
+
 signals:
 
     /** issued to serve prompt */
