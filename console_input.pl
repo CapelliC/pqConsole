@@ -57,11 +57,11 @@ prolog:complete_input(Before, _After, Delete, Completions) :-
 	complete(BeforeRev, Delete, Completions).
 
 complete(BeforeRev, Prefix, Files) :-	% complete files
-	phrase(file_prefix(Prefix), BeforeRev), !,
+	phrase(file_prefix(Prefix), BeforeRev, _), !,
 	atom_concat(Prefix, '*', Pattern),
 	expand_file_name(Pattern, Files).
 complete(BeforeRev, Prefix, Atoms) :-	% complete atoms
-	phrase(atom_prefix(Prefix), BeforeRev), !,
+	phrase(atom_prefix(Prefix), BeforeRev, _), !,
 	'$atom_completions'(Prefix, Atoms).
 
 %%	atom_prefix(-Prefix) is det.
