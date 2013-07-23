@@ -25,7 +25,7 @@
 #include <QDebug>
 
 Swipl_IO::Swipl_IO(QObject *parent) :
-    QObject(parent), host(0)
+    QObject(parent)
 {
 }
 
@@ -39,6 +39,7 @@ ssize_t Swipl_IO::_read_f(void *handle, char *buf, size_t bufsize) {
 ssize_t Swipl_IO::_write_f(void *handle, char* buf, size_t bufsize) {
     auto e = static_cast<Swipl_IO*>(handle);
     emit e->user_output(QString::fromUtf8(buf, bufsize));
+    e->flush();
     return bufsize;
 }
 
@@ -101,7 +102,7 @@ void Swipl_IO::take_input(QString cmd) {
     ready.wakeOne();
 }
 
-void Swipl_IO::attached(ConsoleEdit *c) {
-    Q_ASSERT(host == c);
+void Swipl_IO::attached(ConsoleEdit *c) { Q_UNUSED(c);
+    Q_ASSERT(target == c);
     ready.wakeOne();
 }

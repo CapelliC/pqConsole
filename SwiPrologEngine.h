@@ -23,29 +23,29 @@
 #ifndef SWIPROLOGENGINE_H
 #define SWIPROLOGENGINE_H
 
-#include <QThread>
-#include <QMutex>
-#include <QWaitCondition>
-#include <QMap>
-#include <QVariant>
-#include <QStringList>
-
 #include <SWI-cpp.h>
 
+#include <QMap>
+#include <QMutex>
+#include <QThread>
+#include <QVariant>
+#include <QStringList>
+#include <QWaitCondition>
 #include <functional>
 
 /** 1. attempt to run generic code inter threads */
 typedef std::function<void()> pfunc;
 
+#include "FlushOutputEvents.h"
 #include "pqConsole_global.h"
 
 /** interface IO running SWI Prolog engine in background
  */
-class PQCONSOLESHARED_EXPORT SwiPrologEngine : public QThread {
+class PQCONSOLESHARED_EXPORT SwiPrologEngine : public QThread, public FlushOutputEvents {
     Q_OBJECT
 public:
 
-    explicit SwiPrologEngine(QObject *parent = 0);
+    explicit SwiPrologEngine(ConsoleEdit *target, QObject *parent = 0);
     ~SwiPrologEngine();
 
     /** main console startup point */
@@ -79,11 +79,7 @@ public:
     /** utility: make public */
     static void msleep(unsigned long n) { QThread::msleep(n); }
 
-    /** attempt to run generic code inter threads */
-    //void exec_func(pfunc f) { emit sig_run_function(f); }
-    void escape_func(pfunc f) { efunc = f; ready.wakeOne(); }
-    pfunc efunc;
-
+    /** query engine about expected interface */
     static bool is_tty();
 
 signals:

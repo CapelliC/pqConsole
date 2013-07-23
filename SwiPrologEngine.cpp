@@ -24,6 +24,10 @@
 #include <SWI-cpp.h>
 #include "SwiPrologEngine.h"
 #include "PREDICATE.h"
+
+#include "ConsoleEdit.h"
+#include "do_events.h"
+
 #include <QtDebug>
 #include <signal.h>
 #include <QTimer>
@@ -34,9 +38,9 @@ SwiPrologEngine *SwiPrologEngine::spe;
 
 /** enforce singleton handling
  */
-SwiPrologEngine::SwiPrologEngine(QObject *parent)
+SwiPrologEngine::SwiPrologEngine(ConsoleEdit *target, QObject *parent)
     : QThread(parent),
-      efunc(0),
+      FlushOutputEvents(target),
       argc(-1),
       thid(-1)
 {
@@ -66,7 +70,6 @@ void SwiPrologEngine::start(int argc, char **argv) {
 }
 
 void SwiPrologEngine::user_input(QString s) {
-    //qDebug() << "user_input available" << CVP(this) << CVP(CT);
     buffer = s.toUtf8();
     ready.wakeOne();
 }
@@ -74,7 +77,6 @@ void SwiPrologEngine::user_input(QString s) {
 /** fill the buffer
  */
 ssize_t SwiPrologEngine::_read_(void *handle, char *buf, size_t bufsize) {
-    //qDebug() << "_read_" << CVP(handle) << CVP(CT);
     Q_UNUSED(handle);
     Q_ASSERT(spe);
     return spe->_read_(buf, bufsize);
@@ -143,8 +145,10 @@ _wait_:
  */
 ssize_t SwiPrologEngine::_write_(void *handle, char *buf, size_t bufsize) {
     Q_UNUSED(handle);
-    if (spe) // && !no_output)    // not terminated?
+    if (spe) {   // not terminated?
         emit spe->user_output(QString::fromUtf8(buf, bufsize));
+        spe->flush();
+    }
     return bufsize;
 }
 

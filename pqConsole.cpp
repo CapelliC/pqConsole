@@ -581,11 +581,9 @@ PREDICATE(select_font, 0) { Q_UNUSED(_av);
         ConsoleEdit::exec_sync s;
         c->exec_func([&]() {
             Preferences p;
-            QFont font = QFontDialog::getFont(&ok, p.console_font /*c->font()*/, c);
-            if (ok) {
-                c->setFont(font);
-                p.console_font = font;
-            }
+            QFont font = QFontDialog::getFont(&ok, p.console_font, c);
+            if (ok)
+                c->setFont(p.console_font = font);
             s.go();
         });
         s.stop();

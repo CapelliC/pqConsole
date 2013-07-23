@@ -38,6 +38,8 @@
 #include <QApplication>
 #include <QStringListModel>
 
+//ConsoleEdit *cmain;
+
 /** some default color, seems sufficiently visible to me
  */
 static QColor ANSI2col(int c, bool highlight = false) {
@@ -68,17 +70,19 @@ static QColor ANSI2col(int c, bool highlight = false) {
 ConsoleEdit::ConsoleEdit(int argc, char **argv, QWidget *parent)
     : ConsoleEditBase(parent), io(0)
 {
+//cmain = this;
+
     qApp->setWindowIcon(QIcon(":/swipl.png"));
 
     qRegisterMetaType<pfunc>("pfunc");
 
     setup();
-    eng = new SwiPrologEngine;
+    eng = new SwiPrologEngine(this);
 
     Preferences p;
 
     // wire up console IO
-    connect(eng, SIGNAL(user_output(QString)), this, SLOT(user_output(QString)), p.user_output_conntype);
+    connect(eng, SIGNAL(user_output(QString)), this, SLOT(user_output(QString)));//, p.user_output_conntype);
     connect(eng, SIGNAL(user_prompt(int, bool)), this, SLOT(user_prompt(int, bool)));
     connect(this, SIGNAL(user_input(QString)), eng, SLOT(user_input(QString)));
 
@@ -113,7 +117,8 @@ ConsoleEdit::ConsoleEdit(Swipl_IO* io)
  *  of instancing in a tabbed interface
  */
 void ConsoleEdit::setup(Swipl_IO* io) {
-    io->host = this;
+    //io->host = this;
+    io->target = this;
 
     setup();
 
@@ -144,13 +149,11 @@ void ConsoleEdit::setup() {
     Preferences p;
 
     // preset presentation attributes
-    //output_text_fmt.setForeground(ANSI2col(0));
-    //input_text_fmt.setBackground(ANSI2col(6, true));
     output_text_fmt.setForeground(p.console_output_fmt);
     input_text_fmt.setBackground(p.console_input_fmt);
 
     setLineWrapMode(p.wrapMode);
-    setFont(p.console_font); // QFont("courier", 12));
+    setFont(p.console_font);
 
     connect(this, SIGNAL(cursorPositionChanged()), this, SLOT(onCursorPositionChanged()));
 
@@ -275,12 +278,9 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         return;
 
     case Key_D:
-        if (cp >= fixedPosition) {
-            if (ctrl) {
-                cmd = "end_of_file.\n";
-                goto _cmd_;
-            }
-            accept = true;
+        if ((accept = cp >= fixedPosition) && ctrl) {
+            cmd = "end_of_file.\n";
+            goto _cmd_;
         }
         break;
 
@@ -514,13 +514,15 @@ void ConsoleEdit::user_output(QString text) {
     else
         instext(text);
 
+        /*
     if (update_refresh_rate > 0 && (++count_output % update_refresh_rate == 0)) {
         c.movePosition(c.End);
         setTextCursor(c);
         ensureCursorVisible();
-        repaint();
-        do_events(0);
+        //repaint();
+        //do_events(0);
     }
+    */
 }
 
 /** issue an input request
@@ -694,7 +696,8 @@ void ConsoleEdit::tty_clear() {
 /** issue instancing in GUI thread (cant moveToThread a Widget)
  */
 void ConsoleEdit::new_console(Swipl_IO *io, QString title) {
-    Q_ASSERT(io->host == 0);
+    //Q_ASSERT(io->host == 0);
+    Q_ASSERT(io->target == 0);
 
     auto r = new req_new_console(io, title);
     QApplication::instance()->postEvent(this, r);
@@ -723,10 +726,13 @@ void ConsoleEdit::customEvent(QEvent *event) {
     for (QWidget *w = parentWidget(); w && !mw; w = w->parentWidget())
         mw = qobject_cast<pqMainWindow*>(w);
 
+    ConsoleEdit *nc;
     if (mw)
-        mw->addConsole(new ConsoleEdit(e->iop), e->title);
+        mw->addConsole(nc = new ConsoleEdit(e->iop), e->title);
     else    /* fire and forget :) auto ce = */
-        new ConsoleEdit(e->iop, e->title);
+        nc = new ConsoleEdit(e->iop, e->title);
+
+    e->iop->target = nc;
 }
 
 /** store lines from swipl-win console protocol

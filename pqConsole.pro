@@ -29,7 +29,8 @@ SOURCES += \
     Completion.cpp \
     Swipl_IO.cpp \
     pqMainWindow.cpp \
-    Preferences.cpp
+    Preferences.cpp \
+    FlushOutputEvents.cpp
 
 HEADERS += \
     pqConsole.h \
@@ -42,7 +43,8 @@ HEADERS += \
     Swipl_IO.h \
     pqMainWindow.h \
     Preferences.h \
-    do_events.h
+    do_events.h \
+    FlushOutputEvents.h
 
 symbian {
     MMP_RULES += EXPORTUNFROZEN

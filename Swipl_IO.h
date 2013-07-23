@@ -29,7 +29,7 @@
 /** This class keeps the essential elements to get console behaviour.
  *  It's obtained from [SwiPrologEngine](@ref SwiPrologEngine), but tied to a SWI-Prolog built thread
  */
-class Swipl_IO : public QObject {
+class Swipl_IO : public QObject, public FlushOutputEvents {
     Q_OBJECT
 
 public:
@@ -45,7 +45,7 @@ public:
     explicit Swipl_IO(QObject *parent = 0);
 
     /** the GUI object hosting this interface */
-    ConsoleEdit *host;
+    //ConsoleEdit *host;
 
     /** call from GUI thread: need waiting til object complete construction */
     void wait_console();
