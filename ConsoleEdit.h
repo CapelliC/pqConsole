@@ -154,7 +154,7 @@ protected:
     void compinit(QTextCursor c);
     void compinit2(QTextCursor c);
 
-    /** associated thread id */
+    /** associated thread id (see PL_thread_self()) */
     int thid;
 
     /** wiring etc... */
@@ -170,6 +170,15 @@ protected:
     e_status status;
     int promptPosition;
     bool is_tty;
+
+    /** bypass IO based execution, direct calling
+    void direct_call(QString call);
+    void direct_call(QString module, QString call);
+    */
+
+    /** need to sense the processor type to execute code */
+    void query_run(QString call);
+    void query_run(QString module, QString call);
 
 public slots:
 

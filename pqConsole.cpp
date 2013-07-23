@@ -475,6 +475,13 @@ PREDICATE(tty_size, 2) {
     return FALSE;
 }
 
+/** break looping
+PREDICATE(interrupt, 0) { Q_UNUSED(_av);
+    throw PlException(PlAtom("stop_req"));
+    return FALSE;
+}
+*/
+
 #undef PROLOG_MODULE
 #define PROLOG_MODULE "pqConsole"
 
@@ -619,12 +626,5 @@ PREDICATE(paste, 0) { Q_UNUSED(_av);
         });
         return TRUE;
     }
-    return FALSE;
-}
-
-/** break looping
- */
-PREDICATE(interrupt, 0) { Q_UNUSED(_av);
-    throw PlException(PlAtom("stop_req"));
     return FALSE;
 }

@@ -56,11 +56,6 @@ public:
     /** foreign thread connection completed */
     void attached(ConsoleEdit *c);
 
-    /** attempt to run generic code inter threads */
-    //void exec_func(pfunc f) { emit sig_run_function(f); }
-
-    bool is_tty;
-
 private:
 
     QMutex sync;
@@ -80,16 +75,10 @@ signals:
     /** issued to peek input - til to CR - from user */
     void user_prompt(int threadId, bool tty);
 
-    /** 3. attempt to run generic code inter threads */
-    //void sig_run_function(pfunc f);
-
 public slots:
 
     /** store string in buffer */
     void user_input(QString input);
-
-    /** 2. attempt to run generic code inter threads */
-    //void run_function(pfunc f) { f(); }
 
 };
 

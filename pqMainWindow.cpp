@@ -87,12 +87,13 @@ void pqMainWindow::addConsole(ConsoleEdit *console, QString title) {
         t->setTabsClosable(true);
         QString T = windowTitle();
         if (T.isEmpty())
-            T = "swipl";
+            T = "SwiPl";
         t->addTab(c, T);
         setCentralWidget(t);
         connect(t, SIGNAL(tabCloseRequested(int)), this, SLOT(tabCloseRequested(int)));
     }
-    t->addTab(console, title);
+    int i = t->addTab(console, title);
+    t->setCurrentIndex(i);
 }
 
 /** handle the close button, issuing console request and removing from tab

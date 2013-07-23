@@ -21,18 +21,21 @@
 */
 
 #include "Swipl_IO.h"
+#include "do_events.h"
 #include "PREDICATE.h"
 #include "Completion.h"
 #include "pqMainWindow.h"
-#include "do_events.h"
 
-#include <QKeyEvent>
+#include <signal.h>
+
 #include <QRegExp>
 #include <QtDebug>
 #include <QAction>
+#include <QToolTip>
+#include <QKeyEvent>
+#include <QMessageBox>
 #include <QMainWindow>
 #include <QApplication>
-#include <QToolTip>
 #include <QStringListModel>
 
 /** some default color, seems sufficiently visible to me
@@ -73,11 +76,10 @@ ConsoleEdit::ConsoleEdit(int argc, char **argv, QWidget *parent)
     eng = new SwiPrologEngine;
 
     // wire up console IO
-    connect(eng, SIGNAL(user_output(QString)), this, SLOT(user_output(QString)));
+    connect(eng, SIGNAL(user_output(QString)), this, SLOT(user_output(QString)), Qt::BlockingQueuedConnection);
     connect(eng, SIGNAL(user_prompt(int, bool)), this, SLOT(user_prompt(int, bool)));
     connect(this, SIGNAL(user_input(QString)), eng, SLOT(user_input(QString)));
 
-    //connect(eng, SIGNAL(sig_run_function(pfunc)), eng, SLOT(run_function(pfunc)));
     connect(eng, SIGNAL(finished()), this, SLOT(eng_completed()));
 
     // issue worker thread start
@@ -277,9 +279,9 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
     case Key_C:
     // case Key_Pause: I thought this one also work. It's not true.
         if (ctrl) {
-            if (eng)
-                eng->cancel_running();
-            break;
+            qDebug() << "^C" << thid << status;
+            PL_thread_raise(thid, SIGINT);
+            return;
         }
         // fall throu
 
@@ -504,13 +506,13 @@ void ConsoleEdit::user_output(QString text) {
     else
         instext(text);
 
-    if (update_refresh_rate > 0 && ++count_output == update_refresh_rate) {
-        count_output = 0;
+    if (update_refresh_rate > 0 && (++count_output % update_refresh_rate == 0)) {
         c.movePosition(c.End);
         setTextCursor(c);
         ensureCursorVisible();
         repaint();
-        do_events();
+
+        do_events(0);
     }
 }
 
@@ -588,6 +590,13 @@ bool ConsoleEdit::eventFilter(QObject *, QEvent *event) {
 /** attempt to gracefully stop XPCE thread
  */
 bool ConsoleEdit::can_close() {
+    if (status == running) {
+        QMessageBox msg;
+        msg.setText(QString("Thread %1 is running a query.\nPlease stop before quitting.").arg(thid));
+        msg.exec();
+        return false;
+    }
+
     bool quit = true;
     if (eng) {
         eng->query_run("halt");
@@ -636,7 +645,7 @@ void ConsoleEdit::onCursorPositionChanged() {
                 bool is_numl;
                 int numline = parts[p+1].toInt(&is_numl);
                 if (is_numl)
-                    eng->query_run(QString("edit('%1':%2)").arg(path).arg(numline));
+                    query_run(QString("edit('%1':%2)").arg(path).arg(numline));
             }
         }
     } else
@@ -659,7 +668,12 @@ void ConsoleEdit::onConsoleMenuAction() {
         QString t = a->toolTip(),
                 module = t.left(t.indexOf(':')),
                 query = t.mid(t.indexOf(':') + 1);
-        eng->query_run(module, query);
+        if (query == "interrupt") {
+            if (thid > 0)
+                PL_thread_raise(thid, SIGINT);
+        }
+        else
+            query_run(module, query);
     }
 }
 
@@ -667,7 +681,7 @@ void ConsoleEdit::onConsoleMenuAction() {
  */
 void ConsoleEdit::tty_clear() {
     clear();
-    fixedPosition = 0;
+    fixedPosition = promptPosition = 0;
 }
 
 /** issue instancing in GUI thread (cant moveToThread a Widget)
@@ -717,11 +731,30 @@ void ConsoleEdit::add_history_line(QString line)
     history_spare.clear();
 }
 
-/** when engine gracefully complete-... */
+/** when engine gracefully complete-...
+ */
 void ConsoleEdit::eng_completed() {
     if (eng)
         qApp->quit();
     else if (io) {
         qDebug() << "eng_completed";
     }
+}
+
+/** dispatch execution to appropriate object
+ */
+void ConsoleEdit::query_run(QString call) {
+    if (eng)
+        eng->query_run(call);
+    else if (io)
+        io->take_input(call);
+}
+
+/** dispatch qualified execution to appropriate object
+ */
+void ConsoleEdit::query_run(QString module, QString call) {
+    if (eng)
+        eng->query_run(module, call);
+    else if (io)
+        io->take_input(module + ":" + call);
 }

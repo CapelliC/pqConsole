@@ -106,7 +106,6 @@ _wait_:
             Q_ASSERT(!p.is_script);
             {
                 QString n = p.name, t = p.text;
-                //qDebug() << "n:" << n << "t:" << t;
                 try {
                     if (n.isEmpty()) {
                         PlQuery q("call", PlTermv(PlCompound(t.toUtf8())));
@@ -143,7 +142,6 @@ _wait_:
 /** empty the buffer
  */
 ssize_t SwiPrologEngine::_write_(void *handle, char *buf, size_t bufsize) {
-    //qDebug() << "_write_" << CVP(handle) << CVP(CT) << QString::fromUtf8(buf, bufsize);
     Q_UNUSED(handle);
     if (spe) // && !no_output)    // not terminated?
         emit spe->user_output(QString::fromUtf8(buf, bufsize));
