@@ -31,6 +31,7 @@
 #include "Swipl_IO.h"
 #include "PREDICATE.h"
 #include "do_events.h"
+#include "Preferences.h"
 
 #include <QApplication>
 #include <QMainWindow>
@@ -579,9 +580,12 @@ PREDICATE(select_font, 0) { Q_UNUSED(_av);
     if (c) {
         ConsoleEdit::exec_sync s;
         c->exec_func([&]() {
-            QFont font = QFontDialog::getFont(&ok, c->font(), c);
-            if (ok)
+            Preferences p;
+            QFont font = QFontDialog::getFont(&ok, p.console_font /*c->font()*/, c);
+            if (ok) {
                 c->setFont(font);
+                p.console_font = font;
+            }
             s.go();
         });
         s.stop();

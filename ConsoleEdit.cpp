@@ -24,8 +24,8 @@
 #include "do_events.h"
 #include "PREDICATE.h"
 #include "Completion.h"
+#include "Preferences.h"
 #include "pqMainWindow.h"
-
 #include <signal.h>
 
 #include <QRegExp>
@@ -75,8 +75,10 @@ ConsoleEdit::ConsoleEdit(int argc, char **argv, QWidget *parent)
     setup();
     eng = new SwiPrologEngine;
 
+    Preferences p;
+
     // wire up console IO
-    connect(eng, SIGNAL(user_output(QString)), this, SLOT(user_output(QString)), Qt::BlockingQueuedConnection);
+    connect(eng, SIGNAL(user_output(QString)), this, SLOT(user_output(QString)), p.user_output_conntype);
     connect(eng, SIGNAL(user_prompt(int, bool)), this, SLOT(user_prompt(int, bool)));
     connect(this, SIGNAL(user_input(QString)), eng, SLOT(user_input(QString)));
 
@@ -115,8 +117,10 @@ void ConsoleEdit::setup(Swipl_IO* io) {
 
     setup();
 
+    Preferences p;
+
     // wire up console IO
-    connect(io, SIGNAL(user_output(QString)), this, SLOT(user_output(QString)));
+    connect(io, SIGNAL(user_output(QString)), this, SLOT(user_output(QString)), p.user_output_conntype);
     connect(io, SIGNAL(user_prompt(int, bool)), this, SLOT(user_prompt(int, bool)));
     connect(this, SIGNAL(user_input(QString)), io, SLOT(user_input(QString)));
 
@@ -137,12 +141,16 @@ void ConsoleEdit::setup() {
     update_refresh_rate = 100;
     preds = 0;
 
-    // preset presentation attributes
-    output_text_fmt.setForeground(ANSI2col(0));
-    input_text_fmt.setBackground(ANSI2col(6, true));
+    Preferences p;
 
-    //setLineWrapMode(wrap_mode);
-    setFont(QFont("courier", 12));
+    // preset presentation attributes
+    //output_text_fmt.setForeground(ANSI2col(0));
+    //input_text_fmt.setBackground(ANSI2col(6, true));
+    output_text_fmt.setForeground(p.console_output_fmt);
+    input_text_fmt.setBackground(p.console_input_fmt);
+
+    setLineWrapMode(p.wrapMode);
+    setFont(p.console_font); // QFont("courier", 12));
 
     connect(this, SIGNAL(cursorPositionChanged()), this, SLOT(onCursorPositionChanged()));
 
@@ -291,6 +299,12 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
 
     if (accept) {
 
+        if (is_tty && c.atEnd()) {
+            cmd = event->text();
+            if (!cmd.isEmpty())
+                goto _cmd_;
+        }
+
         setCurrentCharFormat(input_text_fmt);
         ConsoleEditBase::keyPressEvent(event);
 
@@ -300,12 +314,6 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
             preds->popup()->setCurrentIndex(preds->completionModel()->index(0, 0));
         }
         else {
-
-            if (is_tty && c.atEnd()) {
-                cmd = event->text();
-                if (!cmd.isEmpty())
-                    goto _cmd_;
-            }
 
             // handle ^A+Del (clear buffer)
             c.movePosition(c.End);
@@ -511,7 +519,6 @@ void ConsoleEdit::user_output(QString text) {
         setTextCursor(c);
         ensureCursorVisible();
         repaint();
-
         do_events(0);
     }
 }

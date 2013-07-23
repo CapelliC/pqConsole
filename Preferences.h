@@ -27,23 +27,33 @@
 #include <QColor>
 #include <QSettings>
 #include <QTextCharFormat>
+#include "ConsoleEdit.h"
 
+/** some configurable user preference
+ */
 class Preferences : public QSettings
 {
     Q_OBJECT
 public:
 
     explicit Preferences(QObject *parent = 0);
-    
-    QFont console_font;
-    QTextCharFormat console_output_fmt;
-    QTextCharFormat console_input_fmt;
-    QColor console_background;
+    ~Preferences();
 
+    QFont console_font;
+    QColor console_output_fmt;
+    QColor console_input_fmt;
+
+    ConsoleEditBase::LineWrapMode wrapMode;
+
+    // TBD this is performance critical
+    Qt::ConnectionType user_output_conntype;
+
+#if 0
+    QColor console_background;
     QSize w_size;
     QPoint w_position;
-
     bool top_level_consoles;
+#endif
 
 signals:
     
