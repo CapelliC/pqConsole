@@ -25,27 +25,26 @@
 
 #include <SWI-Stream.h>
 
-#include "pqConsole.h"
-#include "pqMainWindow.h"
-#include "ConsoleEdit.h"
 #include "Swipl_IO.h"
+#include "pqConsole.h"
 #include "PREDICATE.h"
 #include "do_events.h"
+#include "ConsoleEdit.h"
 #include "Preferences.h"
+#include "pqMainWindow.h"
 
-#include <QApplication>
-#include <QMainWindow>
 #include <QStack>
-#include <QFontMetrics>
-
-#include <QMetaProperty>
-#include <QMetaObject>
 #include <QDebug>
 #include <QMenuBar>
-
+#include <QClipboard>
 #include <QFileDialog>
 #include <QFontDialog>
-#include <QClipboard>
+#include <QMessageBox>
+#include <QMetaObject>
+#include <QMainWindow>
+#include <QApplication>
+#include <QFontMetrics>
+#include <QMetaProperty>
 
 /** Run a default GUI to demo the ability to embed Prolog with minimal effort.
  *  It will evolve - eventually - from a demo
@@ -482,6 +481,44 @@ PREDICATE(interrupt, 0) { Q_UNUSED(_av);
     return FALSE;
 }
 */
+
+/** display modal message box
+ *  win_message_box(+Text, +Options)
+ *  Options is list of name(Value)
+ */
+PREDICATE(win_message_box, 2) {
+    ConsoleEdit* c = console_by_thread();
+    if (c) {
+        QString Text = t2w(A1);
+        QString Title = "Swipl";
+        PlTerm Option;
+        typedef QPair<int, QString> O;
+        for (PlTail t(A2); t.next(Option); ) {
+            if (Option.arity() == 1) {
+                QString name = Option.name();
+                if (name == "title") {
+                    Title = t2w(Option[1]);
+                }
+                /*
+                if (name == "title") {
+
+                }
+                */
+            }
+        }
+
+        ConsoleEdit::exec_sync s;
+        c->exec_func([&]() {
+            QMessageBox mbox;
+            mbox.setText(Text);
+            mbox.setWindowTitle(Title);
+            mbox.exec();
+            s.go();
+        });
+        s.stop();
+    }
+    return TRUE;
+}
 
 #undef PROLOG_MODULE
 #define PROLOG_MODULE "pqConsole"

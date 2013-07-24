@@ -26,6 +26,8 @@
 #include <QTimer>
 #include "PREDICATE.h"
 
+inline ConsoleEdit *wid2con(QWidget *w) { return qobject_cast<ConsoleEdit*>(w); }
+
 pqMainWindow::pqMainWindow(QWidget *parent) :
     QMainWindow(parent)
 {
@@ -58,17 +60,26 @@ ConsoleEdit *pqMainWindow::console(int thread) const {
 
     if (!consoles()) {
         // don't search
-        auto c = qobject_cast<ConsoleEdit*>(centralWidget());
+        auto c = wid2con(centralWidget());
         return c->match_thread(thread) ? c : 0;
     }
 
     for (int i = 0; consoles()->count(); ++i) {
-        auto c = qobject_cast<ConsoleEdit*>(consoles()->widget(i));
+        auto c = wid2con(consoles()->widget(i));
         if (c->match_thread(thread))
             return c;
     }
 
     return 0;
+}
+
+/** get current active widget
+ */
+ConsoleEdit *pqMainWindow::consoleActive() const {
+    auto t = consoles();
+    QWidget *w = t ? t->currentWidget() : centralWidget();
+    Q_ASSERT(w && wid2con(w));
+    return wid2con(w);
 }
 
 /** qualify widget type
@@ -82,7 +93,7 @@ QTabWidget *pqMainWindow::consoles() const {
 void pqMainWindow::addConsole(ConsoleEdit *console, QString title) {
     auto t = consoles();
     if (!t) {
-        auto c = qobject_cast<ConsoleEdit*>(centralWidget());
+        auto c = wid2con(centralWidget());
         t = new QTabWidget;
         t->setTabsClosable(true);
         QString T = windowTitle();
@@ -99,7 +110,7 @@ void pqMainWindow::addConsole(ConsoleEdit *console, QString title) {
 /** handle the close button, issuing console request and removing from tab
  */
 void pqMainWindow::tabCloseRequested(int tabId) {
-    auto c = qobject_cast<ConsoleEdit*>(consoles()->widget(tabId));
+    auto c = wid2con(consoles()->widget(tabId));
     if (c->can_close())
         consoles()->removeTab(tabId);
 }

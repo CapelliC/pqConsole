@@ -674,15 +674,35 @@ void ConsoleEdit::set_cursor_tip(QTextCursor c) {
 void ConsoleEdit::onConsoleMenuAction() {
     auto a = qobject_cast<QAction *>(sender());
     if (a) {
-        QString t = a->toolTip(),
-                module = t.left(t.indexOf(':')),
-                query = t.mid(t.indexOf(':') + 1);
+        QString action = a->toolTip(),
+                module = action.left(action.indexOf(':')),
+                query = action.mid(action.indexOf(':') + 1);
+
         if (query == "interrupt") {
             if (thid > 0)
                 PL_thread_raise(thid, SIGINT);
         }
-        else
+        else {
+            if (0) {
+                pqMainWindow *w = 0;
+                for (QWidget *p = parentWidget(); p; p = p->parentWidget())
+                    if ((w = qobject_cast<pqMainWindow *>(p)))
+                        break;
+                if (w) {
+                    if (ConsoleEdit *target = w->consoleActive()) {
+                        SwiPrologEngine::in_thread e;
+                        try {
+                            PL_set_prolog_flag("console_thread", PL_INTEGER, target->thid);
+                            PlCall(action.toUtf8());
+                        } catch(PlException e) {
+                            qDebug() << CCP(e);
+                        }
+                        return;
+                    }
+                }
+            }
             query_run(module, query);
+        }
     }
 }
 

@@ -218,7 +218,8 @@ SwiPrologEngine::in_thread::in_thread()
         msleep(100);
     while (spe->argc)
         msleep(100);
-    PL_thread_attach_engine(0);
+    int id = PL_thread_attach_engine(0);
+    Q_ASSERT(id >= 0);
     frame = new PlFrame;
 }
 

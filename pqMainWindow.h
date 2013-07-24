@@ -55,6 +55,9 @@ public:
     /** get access to the widget */
     ConsoleEdit *console(int thread = -1) const;
 
+    /** get current active widget */
+    ConsoleEdit *consoleActive() const;
+
     /** add a console: switch the interface to tabbed one */
     void addConsole(ConsoleEdit *console, QString title);
 
