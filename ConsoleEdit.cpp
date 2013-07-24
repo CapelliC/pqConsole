@@ -125,7 +125,7 @@ void ConsoleEdit::setup(Swipl_IO* io) {
     Preferences p;
 
     // wire up console IO
-    connect(io, SIGNAL(user_output(QString)), this, SLOT(user_output(QString)), p.user_output_conntype);
+    connect(io, SIGNAL(user_output(QString)), this, SLOT(user_output(QString))); //, p.user_output_conntype);
     connect(io, SIGNAL(user_prompt(int, bool)), this, SLOT(user_prompt(int, bool)));
     connect(this, SIGNAL(user_input(QString)), io, SLOT(user_input(QString)));
 
