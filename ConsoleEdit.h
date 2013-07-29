@@ -80,15 +80,13 @@ public:
 
     /** 5. helper syncronization for modal loop */
     struct exec_sync {
+        exec_sync();
+
+        void stop();
+        void go();
+
         QMutex sync;
         QWaitCondition ready;
-        void stop() {
-            sync.lock();
-            ready.wait(&sync);
-        }
-        void go() {
-            ready.wakeOne();
-        }
     };
 
     /** give access to rl_... predicates */
@@ -170,13 +168,11 @@ protected:
     e_status status;
     int promptPosition;
     bool is_tty;
+    friend class Swipl_IO;
 
-    /** bypass IO based execution, direct calling
-    void direct_call(QString call);
-    void direct_call(QString module, QString call);
-    */
-
-    /** need to sense the processor type to execute code */
+    /** need to sense the processor type to execute code
+     *  bypass IO based execution, direct calling
+     */
     void query_run(QString call);
     void query_run(QString module, QString call);
 
@@ -218,6 +214,9 @@ signals:
 
     /** 3. attempt to run generic code inter threads */
     void sig_run_function(pfunc f);
+
+    /** 3. attempt to run generic code inter threads */
+    void sig_run_function_io(pfunc f);
 };
 
 #endif

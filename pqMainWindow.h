@@ -61,6 +61,9 @@ public:
     /** add a console: switch the interface to tabbed one */
     void addConsole(ConsoleEdit *console, QString title);
 
+    /** remove a console (NEVER the first) */
+    void remConsole(ConsoleEdit *console);
+
 signals:
     
 public slots:
@@ -76,5 +79,16 @@ protected:
     /** when there are more than a console, use a tabbed interface */
     QTabWidget *consoles() const;
 };
+
+/** utility to lookup a typed parent in hierarchy */
+
+template <class W>
+inline W* find_parent(QWidget *p) {
+    W *w = 0;
+    for ( ; p; p = p->parentWidget())
+        if ((w = qobject_cast<W*>(p)))
+            break;
+    return w;
+}
 
 #endif // PQMAINWINDOW_H

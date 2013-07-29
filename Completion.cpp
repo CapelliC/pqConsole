@@ -55,12 +55,12 @@ QString Completion::initialize(int promptPosition, QTextCursor c, QStringList &s
 
         c.setPosition(promptPosition, c.KeepAnchor);
         QString left = c.selectedText();
-        PlString Before(left.toUtf8().constData());
+        PlString Before(left.toStdWString().data());
 
         c.setPosition(p);
-
         c.movePosition(c.EndOfLine, c.KeepAnchor);
-        PlString After(c.selectedText().toUtf8().constData());
+        QString after = c.selectedText();
+        PlString After(after.toStdWString().data());
 
         PlTerm Completions, Delete, word;
         if (PlCall("prolog", "complete_input", PlTermv(Before, After, Delete, Completions)))
@@ -72,6 +72,9 @@ QString Completion::initialize(int promptPosition, QTextCursor c, QStringList &s
     }
     catch(PlException e) {
         qDebug() << CCP(e);
+    }
+    catch(...) {
+        qDebug() << "SIGV";
     }
 
     return rets;

@@ -70,8 +70,6 @@ static QColor ANSI2col(int c, bool highlight = false) {
 ConsoleEdit::ConsoleEdit(int argc, char **argv, QWidget *parent)
     : ConsoleEditBase(parent), io(0)
 {
-//cmain = this;
-
     qApp->setWindowIcon(QIcon(":/swipl.png"));
 
     qRegisterMetaType<pfunc>("pfunc");
@@ -79,10 +77,8 @@ ConsoleEdit::ConsoleEdit(int argc, char **argv, QWidget *parent)
     setup();
     eng = new SwiPrologEngine(this);
 
-    Preferences p;
-
     // wire up console IO
-    connect(eng, SIGNAL(user_output(QString)), this, SLOT(user_output(QString)));//, p.user_output_conntype);
+    connect(eng, SIGNAL(user_output(QString)), this, SLOT(user_output(QString)));
     connect(eng, SIGNAL(user_prompt(int, bool)), this, SLOT(user_prompt(int, bool)));
     connect(this, SIGNAL(user_input(QString)), eng, SLOT(user_input(QString)));
 
@@ -117,17 +113,16 @@ ConsoleEdit::ConsoleEdit(Swipl_IO* io)
  *  of instancing in a tabbed interface
  */
 void ConsoleEdit::setup(Swipl_IO* io) {
-    //io->host = this;
     io->target = this;
 
     setup();
 
-    Preferences p;
-
     // wire up console IO
-    connect(io, SIGNAL(user_output(QString)), this, SLOT(user_output(QString))); //, p.user_output_conntype);
+    connect(io, SIGNAL(user_output(QString)), this, SLOT(user_output(QString)));
     connect(io, SIGNAL(user_prompt(int, bool)), this, SLOT(user_prompt(int, bool)));
     connect(this, SIGNAL(user_input(QString)), io, SLOT(user_input(QString)));
+
+    connect(io, SIGNAL(sig_eng_at_exit()), this, SLOT(eng_completed()));
 
     QTimer::singleShot(100, this, SLOT(attached()));
 }
@@ -199,13 +194,16 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         }
         break;
     case Key_Tab:
+        if (ctrl) {
+            event->ignore(); // otherwise tab control get lost !
+            return;
+        }
         if (!on_completion && !ctrl && cp >= fixedPosition) {
             compinit(c);
             return;
         }
         break;
 
-    //case Key_Tab:
     case Key_Backtab:
         // otherwise tab control get lost !
         event->ignore();
@@ -286,7 +284,7 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
 
     case Key_C:
     // case Key_Pause: I thought this one also work. It's not true.
-        if (ctrl) {
+        if (ctrl && status == running) {
             qDebug() << "^C" << thid << status;
             PL_thread_raise(thid, SIGINT);
             return;
@@ -513,16 +511,6 @@ void ConsoleEdit::user_output(QString text) {
     }
     else
         instext(text);
-
-        /*
-    if (update_refresh_rate > 0 && (++count_output % update_refresh_rate == 0)) {
-        c.movePosition(c.End);
-        setTextCursor(c);
-        ensureCursorVisible();
-        //repaint();
-        //do_events(0);
-    }
-    */
 }
 
 /** issue an input request
@@ -609,7 +597,7 @@ bool ConsoleEdit::can_close() {
     bool quit = true;
     if (eng) {
         eng->query_run("halt");
-        for (int i = 0; i < 20; ++i) {
+        for (int i = 0; i < 10; ++i) {
             if ((quit = eng->isFinished()))
                 break;
             SwiPrologEngine::msleep(500);
@@ -678,30 +666,32 @@ void ConsoleEdit::onConsoleMenuAction() {
                 module = action.left(action.indexOf(':')),
                 query = action.mid(action.indexOf(':') + 1);
 
-        if (query == "interrupt") {
-            if (thid > 0)
-                PL_thread_raise(thid, SIGINT);
-        }
-        else {
-            if (0) {
-                pqMainWindow *w = 0;
-                for (QWidget *p = parentWidget(); p; p = p->parentWidget())
-                    if ((w = qobject_cast<pqMainWindow *>(p)))
-                        break;
-                if (w) {
-                    if (ConsoleEdit *target = w->consoleActive()) {
-                        SwiPrologEngine::in_thread e;
-                        try {
-                            PL_set_prolog_flag("console_thread", PL_INTEGER, target->thid);
-                            PlCall(action.toUtf8());
-                        } catch(PlException e) {
-                            qDebug() << CCP(e);
-                        }
-                        return;
-                    }
+        /*
+        pqMainWindow *w = 0;
+        for (QWidget *p = parentWidget(); p; p = p->parentWidget())
+            if ((w = qobject_cast<pqMainWindow *>(p)))
+                break;
+        if (w) {
+        */
+        if (auto w = find_parent<pqMainWindow>(this)) {
+            if (ConsoleEdit *target = w->consoleActive()) {
+                if (query == "interrupt") {
+                    if (target->thid > 0)
+                        PL_thread_raise(target->thid, SIGINT);
+                    return;
                 }
+                if (target->status == running) {
+                    SwiPrologEngine::in_thread e;
+                    try {
+                        PL_set_prolog_flag("console_thread", PL_INTEGER, target->thid);
+                        PlCall(action.toUtf8());
+                    } catch(PlException e) {
+                        qDebug() << CCP(e);
+                    }
+                    return;
+                }
+                target->query_run(action);
             }
-            query_run(module, query);
         }
     }
 }
@@ -769,9 +759,8 @@ void ConsoleEdit::add_history_line(QString line)
 void ConsoleEdit::eng_completed() {
     if (eng)
         qApp->quit();
-    else if (io) {
-        qDebug() << "eng_completed";
-    }
+    else if (io)
+        find_parent<pqMainWindow>(this)->remConsole(this);
 }
 
 /** dispatch execution to appropriate object
@@ -780,7 +769,7 @@ void ConsoleEdit::query_run(QString call) {
     if (eng)
         eng->query_run(call);
     else if (io)
-        io->take_input(call);
+        io->query_run(call);
 }
 
 /** dispatch qualified execution to appropriate object
@@ -789,5 +778,20 @@ void ConsoleEdit::query_run(QString module, QString call) {
     if (eng)
         eng->query_run(module, call);
     else if (io)
-        io->take_input(module + ":" + call);
+        query_run(module + ":" + call);
+}
+
+ConsoleEdit::exec_sync::exec_sync() {
+    //qDebug() << "exec_sync" << CVP(CT);
+    sync.lock();
+}
+void ConsoleEdit::exec_sync::stop() {
+    //qDebug() << "exec_sync::stop" << CVP(CT);
+    ready.wait(&sync);
+    //qDebug() << "exec_sync::stop done" << CVP(CT);
+}
+void ConsoleEdit::exec_sync::go() {
+    //qDebug() << "exec_sync::wakeOne" << CVP(CT);
+    ready.wakeOne();
+    //qDebug() << "exec_sync::wakeOne done" << CVP(CT);
 }

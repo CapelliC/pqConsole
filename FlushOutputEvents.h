@@ -23,17 +23,19 @@
 #ifndef FLUSHOUTPUTEVENTS_H
 #define FLUSHOUTPUTEVENTS_H
 
-#include <QTime>
+#include <QElapsedTimer>
 class ConsoleEdit;
 
 /** factorize output flushing interface
  */
 struct FlushOutputEvents {
-    FlushOutputEvents(ConsoleEdit *target = 0, int msec_delta_refresh = 100);
-    ConsoleEdit *target;
-    QTime measure_calls;
-    int msec_delta_refresh;
+
+    FlushOutputEvents(ConsoleEdit *target = 0, int msec_delta_refresh = 10);
     void flush();
+
+    ConsoleEdit *target;
+    QElapsedTimer measure_calls;
+    int msec_delta_refresh;
 };
 
 #endif // FLUSHOUTPUTEVENTS_H

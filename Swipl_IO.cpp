@@ -22,22 +22,23 @@
 
 #include "Swipl_IO.h"
 #include "PREDICATE.h"
+#include "pqMainWindow.h"
 #include <QDebug>
 
 Swipl_IO::Swipl_IO(QObject *parent) :
-    QObject(parent)
+    QObject(parent), installed(false)
 {
 }
 
 /** fill the buffer */
 ssize_t Swipl_IO::_read_f(void *handle, char *buf, size_t bufsize) {
-    auto e = static_cast<Swipl_IO*>(handle);
+    auto e = pq_cast<Swipl_IO>(handle);
     return e->_read_(buf, bufsize);
 }
 
 /** empty the buffer */
 ssize_t Swipl_IO::_write_f(void *handle, char* buf, size_t bufsize) {
-    auto e = static_cast<Swipl_IO*>(handle);
+    auto e = pq_cast<Swipl_IO>(handle);
     emit e->user_output(QString::fromUtf8(buf, bufsize));
     e->flush();
     return bufsize;
@@ -75,10 +76,31 @@ int64_t Swipl_IO::_seek64_f(void *handle, int64_t pos, int whence) {
 
 ssize_t Swipl_IO::_read_(char *buf, size_t bufsize) {
 
+    if (!installed) {
+        int rc =
+        PL_thread_at_exit(eng_at_exit, this, FALSE);
+        qDebug() << "installed" << rc;
+        installed = true;
+    }
+
     PL_write_prompt(TRUE);
 
     emit user_prompt(PL_thread_self(), SwiPrologEngine::is_tty());
+
+_sync_:
+
     ready.wait(&sync);
+
+    if (!query.isEmpty()) {
+        try {
+            PlCall(query.toStdWString().data());
+        }
+        catch(PlException e) {
+            qDebug() << t2w(e);
+        }
+        query.clear();
+        goto _sync_;
+    }
 
     uint n = buffer.length();
     Q_ASSERT(bufsize >= n);
@@ -102,7 +124,18 @@ void Swipl_IO::take_input(QString cmd) {
     ready.wakeOne();
 }
 
+void Swipl_IO::eng_at_exit(void *p) {
+    auto e = pq_cast<Swipl_IO>(p);
+    emit e->sig_eng_at_exit();
+    qDebug() << "eng_at_exit" << CVP(p) << CVP(CT) << CVP(e);
+}
+
 void Swipl_IO::attached(ConsoleEdit *c) { Q_UNUSED(c);
     Q_ASSERT(target == c);
+    ready.wakeOne();
+}
+
+void Swipl_IO::query_run(QString query) {
+    this->query = query;
     ready.wakeOne();
 }

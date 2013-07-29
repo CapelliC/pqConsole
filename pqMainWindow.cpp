@@ -22,9 +22,11 @@
 
 #include "pqMainWindow.h"
 #include "ConsoleEdit.h"
+#include "PREDICATE.h"
+
 #include <QDebug>
 #include <QTimer>
-#include "PREDICATE.h"
+#include <QMessageBox>
 
 inline ConsoleEdit *wid2con(QWidget *w) { return qobject_cast<ConsoleEdit*>(w); }
 
@@ -44,7 +46,16 @@ pqMainWindow::pqMainWindow(int argc, char *argv[]) {
 /** handle application closing, WRT XPCE termination
  */
 void pqMainWindow::closeEvent(QCloseEvent *event) {
-    if (!console()->can_close())
+
+    auto t = consoles();
+    if (t) {
+        for (int c = 0; c < t->count(); ++c)
+            if (!wid2con(t->widget(c))->can_close()) {
+                event->ignore();
+                return;
+            }
+    }
+    else if (!wid2con(centralWidget())->can_close())
         event->ignore();
 }
 
@@ -110,7 +121,21 @@ void pqMainWindow::addConsole(ConsoleEdit *console, QString title) {
 /** handle the close button, issuing console request and removing from tab
  */
 void pqMainWindow::tabCloseRequested(int tabId) {
+    if (tabId == 0) {
+        QMessageBox::information(this, tr("Cannot close"), tr("Sorry, the primary console cannot be closed"));
+        return;
+    }
+
     auto c = wid2con(consoles()->widget(tabId));
     if (c->can_close())
         consoles()->removeTab(tabId);
+}
+
+void pqMainWindow::remConsole(ConsoleEdit *c) {
+    auto t = consoles();
+    if (t) {
+        int i = t->indexOf(c);
+        if (c > 0)
+            t->removeTab(i);
+    }
 }

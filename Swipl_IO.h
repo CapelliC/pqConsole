@@ -44,9 +44,6 @@ public:
     /** standard interface */
     explicit Swipl_IO(QObject *parent = 0);
 
-    /** the GUI object hosting this interface */
-    //ConsoleEdit *host;
-
     /** call from GUI thread: need waiting til object complete construction */
     void wait_console();
 
@@ -55,6 +52,8 @@ public:
 
     /** foreign thread connection completed */
     void attached(ConsoleEdit *c);
+
+    void query_run(QString query);
 
 private:
 
@@ -67,6 +66,13 @@ private:
     /** factorize access to members */
     ssize_t _read_(char *buf, size_t bufsize);
 
+    /** allows a call without issuing the read */
+    QString query;
+
+    /** termination control */
+    static void eng_at_exit(void *);
+    bool installed;
+
 signals:
 
     /** issued to queue a string to user output */
@@ -75,11 +81,13 @@ signals:
     /** issued to peek input - til to CR - from user */
     void user_prompt(int threadId, bool tty);
 
+    /**  attempt to run generic code inter threads */
+    void sig_eng_at_exit();
+
 public slots:
 
     /** store string in buffer */
     void user_input(QString input);
-
 };
 
 #endif // SWIPL_IO_H

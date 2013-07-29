@@ -76,14 +76,10 @@ typedef const void* CVP;
 
 inline CCP S(const PlTerm &T) { return T; }
 
-inline PlAtom A(QString s) { QByteArray a = s.toUtf8(); return PlAtom(a.constData()); }
-inline PlAtom W(QString s) {
-    wchar_t *w = new wchar_t[s.length() + 1];
-    w[s.toWCharArray(w)] = 0;
-    PlAtom a(w);
-    delete w;
-    return a;
+inline PlAtom W(const QString &s) {
+    return PlAtom(s.toStdWString().data());
 }
+inline PlAtom A(QString s) { return W(s); }
 
 inline QString t2w(PlTerm t) {
     return QString::fromWCharArray(WCP(t));

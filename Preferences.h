@@ -45,10 +45,10 @@ public:
 
     ConsoleEditBase::LineWrapMode wrapMode;
 
+#if 0
     // TBD this is performance critical
     Qt::ConnectionType user_output_conntype;
 
-#if 0
     QColor console_background;
     QSize w_size;
     QPoint w_position;

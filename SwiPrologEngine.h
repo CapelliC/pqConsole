@@ -99,16 +99,10 @@ signals:
     /** signal exception */
     void query_exception(QString query, QString message);
 
-    /** 3. attempt to run generic code inter threads */
-    //void sig_run_function(pfunc f);
-
 public slots:
 
     /** store string in buffer */
     void user_input(QString input);
-
-    /** 2. attempt to run generic code inter threads */
-    //void run_function(pfunc f) { f(); }
 
 protected:
     virtual void run();
