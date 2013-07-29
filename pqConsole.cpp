@@ -260,7 +260,7 @@ PREDICATE(win_window_pos, 1) {
 /** win_has_menu
  *  true =only= when ConsoleEdit is directly framed inside a QMainWindow
  */
-PREDICATE(win_has_menu, 0) { Q_UNUSED(_av);
+PREDICATE0(win_has_menu) {
     auto ce = console_by_thread();
     return ce && qobject_cast<QMainWindow*>(ce->parentWidget()) ? TRUE : FALSE;
 }
@@ -362,7 +362,7 @@ PREDICATE(win_insert_menu_item, 4) {
 /** tty_clear
  *  as requested by Annie. Should as well be implemented capturing ANSI terminal sequence
  */
-PREDICATE(tty_clear, 0) { Q_UNUSED(_av);
+PREDICATE0(tty_clear) {
     ConsoleEdit* c = console_by_thread();
     if (c) {
         c->tty_clear();
@@ -442,13 +442,13 @@ PREDICATE(rl_add_history, 1) {
 /** this should only be used as flag to enable processing ?
  */
 PREDICATE(rl_read_init_file, 1) {
-    Q_UNUSED(_av);
+    Q_UNUSED(A1);
     return TRUE;
 }
 
 /** get history lines for this console
  */
-NAMED_PREDICATE($rl_history, rl_history, 1) {
+NAMED_PREDICATE("$rl_history", rl_history, 1) {
     ConsoleEdit* c = console_by_thread();
     if (c) {
         PlTail lines(A1);
@@ -476,7 +476,7 @@ PREDICATE(tty_size, 2) {
 }
 
 /** break looping
-PREDICATE(interrupt, 0) { Q_UNUSED(_av);
+PREDICATE0(interrupt) {
     throw PlException(PlAtom("stop_req"));
     return FALSE;
 }
@@ -611,7 +611,7 @@ PREDICATE(getSaveFileName, 4) {
 /** select_font
  *  run Qt font selection
  */
-PREDICATE(select_font, 0) { Q_UNUSED(_av);
+PREDICATE0(select_font) {
     ConsoleEdit* c = console_by_thread();
     bool ok = false;
     if (c) {
@@ -631,7 +631,7 @@ PREDICATE(select_font, 0) { Q_UNUSED(_av);
 /** quit_console
  *  just issue termination to Qt application object
  */
-PREDICATE(quit_console, 0) { Q_UNUSED(_av);
+PREDICATE0(quit_console) {
     ConsoleEdit* c = console_by_thread();
     if (c) {
         c->exec_func([](){ qApp->quit(); });
@@ -642,7 +642,7 @@ PREDICATE(quit_console, 0) { Q_UNUSED(_av);
 
 /** issue a copy to clipboard of current selection
  */
-PREDICATE(copy, 0) { Q_UNUSED(_av);
+PREDICATE0(copy) {
     ConsoleEdit* c = console_by_thread();
     if (c) {
         c->exec_func([=](){
@@ -656,7 +656,7 @@ PREDICATE(copy, 0) { Q_UNUSED(_av);
 
 /** issue a paste to clipboard of current selection
  */
-PREDICATE(paste, 0) { Q_UNUSED(_av);
+PREDICATE0(paste) {
     ConsoleEdit* c = console_by_thread();
     if (c) {
         c->exec_func([=](){
