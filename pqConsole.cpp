@@ -148,7 +148,7 @@ static void unify(const QMetaProperty& p, QObject *o, PlTerm v) {
     case PL_ATOM:
         switch (p.type()) {
         case QVariant::String:
-            if (p.write(o, CCP(v)))
+            if (p.write(o, t2w(v)))
                 return;
         case QVariant::Int:
             if (p.isEnumType()) {
@@ -191,8 +191,8 @@ PREDICATE(window_title, 2) {
     if (c) {
         QWidget *w = c->parentWidget();
         if (qobject_cast<QMainWindow*>(w)) {
-            A1 = A(w->windowTitle());
-            w->setWindowTitle(CCP(A2));
+            PL_A1 = A(w->windowTitle());
+            w->setWindowTitle(t2w(PL_A2));
             return TRUE;
         }
     }
@@ -217,7 +217,7 @@ PREDICATE(win_window_pos, 1) {
         return FALSE;
 
     T opt;
-    L options(A1);
+    L options(PL_A1);
     typedef QPair<int, QString> O;
     while (options.next(opt)) {
         O o = O(opt.arity(), opt.name());
@@ -285,7 +285,7 @@ static QAction* add_action(ConsoleEdit *ce, QMenu *mn, QString Label, QString ct
  */
 PREDICATE(win_insert_menu, 2) {
     if (ConsoleEdit *ce = console_by_thread()) {
-        QString Label = CCP(A1), Before = CCP(A2);
+        QString Label = t2w(PL_A1), Before = t2w(PL_A2);
         ce->exec_func([=]() {
             if (auto mw = qobject_cast<QMainWindow*>(ce->parentWidget())) {
                 auto mbar = mw->menuBar();
@@ -315,11 +315,11 @@ PREDICATE(win_insert_menu, 2) {
 PREDICATE(win_insert_menu_item, 4) {
 
     if (ConsoleEdit *ce = console_by_thread()) {
-        QString Pulldown = CCP(A1), Label = CCP(A2), Before = CCP(A3), Goal = CCP(A4);
+        QString Pulldown = t2w(PL_A1), Label = t2w(PL_A2), Before = t2w(PL_A3), Goal = t2w(PL_A4);
         //qDebug() << "win_insert_menu_item" << Pulldown << Label << Before << Goal;
 
-        QString ctxtmod = CCP(PlAtom(PL_module_name(PL_context())));
-        // if (PlCall("context_module", cx)) ctxtmod = CCP(cx); -- same as above: system
+        QString ctxtmod = t2w(PlAtom(PL_module_name(PL_context())));
+        // if (PlCall("context_module", cx)) ctxtmod = t2w(cx); -- same as above: system
         ctxtmod = "win_menu";
 
         ce->exec_func([=]() {
@@ -412,11 +412,11 @@ PREDICATE(win_open_console, 5) {
     out->encoding = ENC_UTF8;
     err->encoding = ENC_UTF8;
 
-    ce->new_console(c, CCP(A1));
+    ce->new_console(c, t2w(PL_A1));
 
-    if (!PL_unify_stream(A2, in) ||
-        !PL_unify_stream(A3, out) ||
-        !PL_unify_stream(A4, err)) {
+    if (!PL_unify_stream(PL_A2, in) ||
+        !PL_unify_stream(PL_A3, out) ||
+        !PL_unify_stream(PL_A4, err)) {
             Sclose(in);
             Sclose(out);
             Sclose(err);
@@ -431,7 +431,7 @@ PREDICATE(win_open_console, 5) {
 PREDICATE(rl_add_history, 1) {
     ConsoleEdit* c = console_by_thread();
     if (c) {
-        WCP line = A1;
+        WCP line = PL_A1;
         if (*line)
             c->add_history_line(QString::fromWCharArray(line));
         return TRUE;
@@ -442,7 +442,7 @@ PREDICATE(rl_add_history, 1) {
 /** this should only be used as flag to enable processing ?
  */
 PREDICATE(rl_read_init_file, 1) {
-    Q_UNUSED(A1);
+    Q_UNUSED(PL_A1);
     return TRUE;
 }
 
@@ -451,7 +451,7 @@ PREDICATE(rl_read_init_file, 1) {
 NAMED_PREDICATE("$rl_history", rl_history, 1) {
     ConsoleEdit* c = console_by_thread();
     if (c) {
-        PlTail lines(A1);
+        PlTail lines(PL_A1);
         foreach(QString x, c->history_lines())
             lines.append(W(x));
         lines.close();
@@ -468,8 +468,8 @@ PREDICATE(tty_size, 2) {
         QSize sz = c->fontMetrics().size(0, "Q");
         long Rows = c->height() / sz.height();
         long Cols = c->width() / sz.width();
-        A1 = Rows;
-        A2 = Cols;
+        PL_A1 = Rows;
+        PL_A2 = Cols;
         return TRUE;
     }
     return FALSE;
@@ -489,11 +489,11 @@ PREDICATE0(interrupt) {
 PREDICATE(win_message_box, 2) {
     ConsoleEdit* c = console_by_thread();
     if (c) {
-        QString Text = t2w(A1);
+        QString Text = t2w(PL_A1);
         QString Title = "Swipl";
         PlTerm Option;
         typedef QPair<int, QString> O;
-        for (PlTail t(A2); t.next(Option); ) {
+        for (PlTail t(PL_A2); t.next(Option); ) {
             if (Option.arity() == 1) {
                 QString name = Option.name();
                 if (name == "title") {
@@ -539,7 +539,7 @@ PREDICATE(console_settings, 1) {
     if (c) {
         PlFrame fr;
         PlTerm opt;
-        for (PlTail opts(A1); opts.next(opt); ) {
+        for (PlTail opts(PL_A1); opts.next(opt); ) {
             if (opt.arity() == 1) {
                 CCP name = opt.name();
                 int pid = c->metaObject()->indexOfProperty(name);
@@ -563,9 +563,9 @@ PREDICATE(console_settings, 1) {
 PREDICATE(getOpenFileName, 4) {
     ConsoleEdit* c = console_by_thread();
     if (c) {
-        QString Caption = CCP(A1), StartPath, Pattern = CCP(A3), Choice;
-        if (A2.type() == PL_ATOM)
-            StartPath = CCP(A2);
+        QString Caption = t2w(PL_A1), StartPath, Pattern = t2w(PL_A3), Choice;
+        if (PL_A2.type() == PL_ATOM)
+            StartPath = t2w(PL_A2);
 
         ConsoleEdit::exec_sync s;
         c->exec_func([&]() {
@@ -575,7 +575,7 @@ PREDICATE(getOpenFileName, 4) {
         s.stop();
 
         if (!Choice.isEmpty()) {
-            A4 = A(Choice);
+            PL_A4 = A(Choice);
             return TRUE;
         }
     }
@@ -589,9 +589,9 @@ PREDICATE(getOpenFileName, 4) {
 PREDICATE(getSaveFileName, 4) {
     ConsoleEdit* c = console_by_thread();
     if (c) {
-        QString Caption = CCP(A1), StartPath, Pattern = CCP(A3), Choice;
-        if (A2.type() == PL_ATOM)
-            StartPath = CCP(A2);
+        QString Caption = t2w(PL_A1), StartPath, Pattern = t2w(PL_A3), Choice;
+        if (PL_A2.type() == PL_ATOM)
+            StartPath = t2w(PL_A2);
 
         ConsoleEdit::exec_sync s;
         c->exec_func([&]() {
@@ -601,7 +601,7 @@ PREDICATE(getSaveFileName, 4) {
         s.stop();
 
         if (!Choice.isEmpty()) {
-            A4 = A(Choice);
+            PL_A4 = A(Choice);
             return TRUE;
         }
     }
