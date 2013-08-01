@@ -492,7 +492,7 @@ PREDICATE(win_message_box, 2) {
         QString Text = t2w(PL_A1);
         QString Title = "Swipl";
         PlTerm Option;
-        typedef QPair<int, QString> O;
+        //typedef QPair<int, QString> O;
         for (PlTail t(PL_A2); t.next(Option); ) {
             if (Option.arity() == 1) {
                 QString name = Option.name();

@@ -137,7 +137,7 @@ void pqMainWindow::remConsole(ConsoleEdit *c) {
     auto t = consoles();
     if (t) {
         int i = t->indexOf(c);
-        if (c > 0)
+        if (i > 0)
             t->removeTab(i);
     }
 }
