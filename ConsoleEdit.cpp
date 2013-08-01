@@ -441,6 +441,10 @@ void ConsoleEdit::focusInEvent(QFocusEvent *e) {
  */
 void ConsoleEdit::user_output(QString text) {
 
+#if defined(Q_OS_WIN)
+    text.replace("\r\n", "\n");
+#endif
+
     QTextCursor c = textCursor();
     if (status == wait_input)
         c.setPosition(promptPosition);
