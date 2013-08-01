@@ -62,6 +62,9 @@ public:
      */
     bool match_thread(int thread_id) const { return thid == thread_id || thid == -1 || thread_id == -1; }
 
+    /** should always match PL_thread_id() ... */
+    int thread_id() const { return thid; }
+
     /** remove all text */
     void tty_clear();
 
@@ -92,6 +95,12 @@ public:
     /** give access to rl_... predicates */
     const QStringList& history_lines() const { return history; }
     void add_history_line(QString line);
+
+    /** run interrupt/0 */
+    void int_request();
+
+    /** just check the status member */
+    bool is_running() const { return status == running; }
 
 protected:
 

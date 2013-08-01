@@ -27,9 +27,12 @@
 #include <QDebug>
 #include "PREDICATE.h"
 
+bool FlushOutputEvents::disabled = false;
+
 FlushOutputEvents::FlushOutputEvents(ConsoleEdit *target, int msec_delta_refresh)
     : target(target),
       msec_delta_refresh(msec_delta_refresh)
+      //synced(0)
 {
     measure_calls.start();
     //qDebug() << "FlushOutputEvents" << CVP(CT);
@@ -39,22 +42,28 @@ void FlushOutputEvents::flush() {
     //qDebug() << measure_calls.elapsed() << CVP(CT);
 
     if (measure_calls.elapsed() >= msec_delta_refresh) {
-        ConsoleEdit::exec_sync s;
 
-        target->exec_func([&]() {
-            QTextCursor c = target->textCursor();
-            c.movePosition(c.End);
-            target->setTextCursor(c);
-            target->ensureCursorVisible();
-            do_events();
-            //qDebug() << "go" << CVP(CT);
-            s.go();
-            //qDebug() << "gone" << CVP(CT);
-        });
+        // avoid deadlock running syncronously (in_thread())
+        //if (target)
+            //if (!synced || synced != QThread::currentThread()) {
+            if (!disabled) {
+                ConsoleEdit::exec_sync s;
 
-        //qDebug() << "stop" << CVP(CT);
-        s.stop();
-        //qDebug() << "stopped" << CVP(CT);
+                target->exec_func([&]() {
+                    QTextCursor c = target->textCursor();
+                    c.movePosition(c.End);
+                    target->setTextCursor(c);
+                    target->ensureCursorVisible();
+                    do_events();
+                    //qDebug() << "go" << CVP(CT);
+                    s.go();
+                    //qDebug() << "gone" << CVP(CT);
+                });
+
+                //qDebug() << "stop" << CVP(CT);
+                s.stop();
+                //qDebug() << "stopped" << CVP(CT);
+            }
 
         measure_calls.restart();
     }

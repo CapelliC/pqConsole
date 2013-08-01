@@ -41,7 +41,9 @@ inline CCP S(const PlTerm &T) { return T; }
 inline PlAtom W(const QString &s) {
     return PlAtom(s.toStdWString().data());
 }
-inline PlAtom A(QString s) { return W(s); }
+inline PlAtom A(QString s) {
+    return W(s);
+}
 
 inline QString t2w(PlTerm t) {
     return QString::fromWCharArray(WCP(t));

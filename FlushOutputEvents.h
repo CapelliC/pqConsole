@@ -23,12 +23,14 @@
 #ifndef FLUSHOUTPUTEVENTS_H
 #define FLUSHOUTPUTEVENTS_H
 
+#include "pqConsole_global.h"
 #include <QElapsedTimer>
+#include <QThread>
 class ConsoleEdit;
 
 /** factorize output flushing interface
  */
-struct FlushOutputEvents {
+struct PQCONSOLESHARED_EXPORT FlushOutputEvents {
 
     FlushOutputEvents(ConsoleEdit *target = 0, int msec_delta_refresh = 10);
     void flush();
@@ -36,6 +38,10 @@ struct FlushOutputEvents {
     ConsoleEdit *target;
     QElapsedTimer measure_calls;
     int msec_delta_refresh;
+
+    //QThread *synced;
+    // hack around Prolog driven menu processing
+    static bool disabled;
 };
 
 #endif // FLUSHOUTPUTEVENTS_H

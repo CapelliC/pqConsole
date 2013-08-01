@@ -20,6 +20,7 @@
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <SWI-Stream.h>
 #include "Swipl_IO.h"
 #include "do_events.h"
 #include "PREDICATE.h"
@@ -587,11 +588,15 @@ bool ConsoleEdit::eventFilter(QObject *, QEvent *event) {
 /** attempt to gracefully stop XPCE thread
  */
 bool ConsoleEdit::can_close() {
-    if (status == running) {
-        QMessageBox msg;
-        msg.setText(QString("Thread %1 is running a query.\nPlease stop before quitting.").arg(thid));
-        msg.exec();
-        return false;
+
+    qDebug() << "can_close" << thid;
+
+    if (is_running()) {
+        QMessageBox b;
+        b.setText(tr("Thread %1 is running a query.\nQuit anyway ?").arg(thread_id()));
+        b.setStandardButtons(b.Yes|b.No);
+        b.setIcon(b.Question);
+        return b.exec() == b.Yes;
     }
 
     bool quit = true;
@@ -600,12 +605,16 @@ bool ConsoleEdit::can_close() {
         for (int i = 0; i < 10; ++i) {
             if ((quit = eng->isFinished()))
                 break;
+            qDebug() << "not isFinished" << thid << i;
             SwiPrologEngine::msleep(500);
         }
     } else if (io) {
         io->take_input("end_of_file.\n");
         SwiPrologEngine::msleep(500);
     }
+
+    qDebug() << "can_close" << thid << "quit" << quit;
+
     return quit;
 }
 
@@ -657,6 +666,12 @@ void ConsoleEdit::set_cursor_tip(QTextCursor c) {
         setToolTip(last_tip);
 }
 
+void ConsoleEdit::int_request() {
+    qDebug() << "int_request" << thid;
+    if (thid > 0)
+        PL_thread_raise(thid, SIGINT);
+}
+
 /** serve the user menu issuing the command
  */
 void ConsoleEdit::onConsoleMenuAction() {
@@ -666,28 +681,31 @@ void ConsoleEdit::onConsoleMenuAction() {
                 module = action.left(action.indexOf(':')),
                 query = action.mid(action.indexOf(':') + 1);
 
-        /*
-        pqMainWindow *w = 0;
-        for (QWidget *p = parentWidget(); p; p = p->parentWidget())
-            if ((w = qobject_cast<pqMainWindow *>(p)))
-                break;
-        if (w) {
-        */
         if (auto w = find_parent<pqMainWindow>(this)) {
             if (ConsoleEdit *target = w->consoleActive()) {
+
                 if (query == "interrupt") {
                     if (target->thid > 0)
                         PL_thread_raise(target->thid, SIGINT);
                     return;
                 }
+
                 if (target->status == running) {
-                    SwiPrologEngine::in_thread e;
-                    try {
-                        PL_set_prolog_flag("console_thread", PL_INTEGER, target->thid);
-                        PlCall(action.toUtf8());
-                    } catch(PlException e) {
-                        qDebug() << CCP(e);
+                    FlushOutputEvents::disabled = true;
+                    FlushOutputEvents *f = target->eng;
+                    if (!f)
+                        f = target->io;
+                    Q_ASSERT(f->target == target);
+
+                    {   SwiPrologEngine::in_thread e;
+                        try {
+                            PL_set_prolog_flag("console_thread", PL_INTEGER, target->thid);
+                            PlCall(action.toUtf8());
+                        } catch(PlException e) {
+                            qDebug() << CCP(e);
+                        }
                     }
+                    FlushOutputEvents::disabled = false;
                     return;
                 }
                 target->query_run(action);
@@ -782,16 +800,11 @@ void ConsoleEdit::query_run(QString module, QString call) {
 }
 
 ConsoleEdit::exec_sync::exec_sync() {
-    //qDebug() << "exec_sync" << CVP(CT);
     sync.lock();
 }
 void ConsoleEdit::exec_sync::stop() {
-    //qDebug() << "exec_sync::stop" << CVP(CT);
     ready.wait(&sync);
-    //qDebug() << "exec_sync::stop done" << CVP(CT);
 }
 void ConsoleEdit::exec_sync::go() {
-    //qDebug() << "exec_sync::wakeOne" << CVP(CT);
     ready.wakeOne();
-    //qDebug() << "exec_sync::wakeOne done" << CVP(CT);
 }

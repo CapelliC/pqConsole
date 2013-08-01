@@ -520,6 +520,18 @@ PREDICATE(win_message_box, 2) {
     return TRUE;
 }
 
+/** interrupt/0
+ *  Ctrl+C
+ */
+PREDICATE0(interrupt) {
+    ConsoleEdit* c = console_by_thread();
+    if (c) {
+        c->int_request();
+        return TRUE;
+    }
+    return FALSE;
+}
+
 #undef PROLOG_MODULE
 #define PROLOG_MODULE "pqConsole"
 

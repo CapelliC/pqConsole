@@ -58,8 +58,8 @@ public:
     /** run script on background thread */
     void script_run(QString name, QString text);
 
-    /** issue user cancel request */
-    void cancel_running();
+    /** issue user cancel request
+    void cancel_running(); */
 
     /** start/stop a Prolog engine in thread - use for syncronized GUI */
     struct PQCONSOLESHARED_EXPORT in_thread {
@@ -126,8 +126,8 @@ protected:
     static ssize_t _write_(void *handle, char *buf, size_t bufsize);
     ssize_t _read_(char *buf, size_t bufsize);
 
-    /** Prolog (background) thread ID */
-    int thid;
+    /** Prolog (background) thread ID
+    int thid; */
 
     ssize_t _read_f(char *buf, size_t bufsize);
 

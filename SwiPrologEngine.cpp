@@ -41,8 +41,8 @@ SwiPrologEngine *SwiPrologEngine::spe;
 SwiPrologEngine::SwiPrologEngine(ConsoleEdit *target, QObject *parent)
     : QThread(parent),
       FlushOutputEvents(target),
-      argc(-1),
-      thid(-1)
+      argc(-1)
+      //thid(-1)
 {
     Q_ASSERT(spe == 0);
     spe = this;
@@ -89,7 +89,7 @@ ssize_t SwiPrologEngine::_read_(char *buf, size_t bufsize) {
 _wait_:
 
     emit user_prompt(PL_thread_self(), is_tty());
-    thid = -1;
+    //thid = -1;
 
     sync.lock();
     ready.wait(&sync);
@@ -99,7 +99,7 @@ _wait_:
         return 0;
 
     // tag status running - and interruptable
-    thid = PL_thread_self();
+    //thid = PL_thread_self();
 
     // async query interface served from same thread
     if (!queries.empty()) {
@@ -156,6 +156,8 @@ void SwiPrologEngine::run() {
     Sinput->functions->read = _read_;
     Soutput->functions->write = _write_;
 
+    //qDebug() << CVP(Soutput->functions->write);
+
     PL_set_prolog_flag("console_menu", PL_BOOL, TRUE);
     PL_set_prolog_flag("console_menu_version", PL_ATOM, "qt");
 
@@ -199,13 +201,13 @@ void SwiPrologEngine::awake() {
 }
 
 /** issue user cancel request
- */
 void SwiPrologEngine::cancel_running() {
     if (thid > 0) {
         qDebug() << "cancel_running";
         PL_thread_raise(thid, SIGINT);
     }
 }
+ */
 
 /** attaching *main* thread engine to another thread (ok GUI thread)
  */

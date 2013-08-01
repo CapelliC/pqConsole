@@ -55,8 +55,10 @@ void pqMainWindow::closeEvent(QCloseEvent *event) {
                 return;
             }
     }
-    else if (!wid2con(centralWidget())->can_close())
+    else if (!wid2con(centralWidget())->can_close()) {
         event->ignore();
+        return;
+    }
 }
 
 /** pass initialization script to actual interface
