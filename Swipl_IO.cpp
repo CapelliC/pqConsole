@@ -24,9 +24,10 @@
 #include "PREDICATE.h"
 #include "pqMainWindow.h"
 #include <QDebug>
+#include <QTime>
 
 Swipl_IO::Swipl_IO(QObject *parent) :
-    QObject(parent), installed(false)
+    QObject(parent)
 {
 }
 
@@ -39,8 +40,10 @@ ssize_t Swipl_IO::_read_f(void *handle, char *buf, size_t bufsize) {
 /** empty the buffer */
 ssize_t Swipl_IO::_write_f(void *handle, char* buf, size_t bufsize) {
     auto e = pq_cast<Swipl_IO>(handle);
-    emit e->user_output(QString::fromUtf8(buf, bufsize));
-    e->flush();
+    if (e->target) {
+        emit e->user_output(QString::fromUtf8(buf, bufsize));
+        e->flush();
+    }
     return bufsize;
 }
 
@@ -74,68 +77,87 @@ int64_t Swipl_IO::_seek64_f(void *handle, int64_t pos, int whence) {
     return 0;
 }
 
+/** polling loop til buffer ready
+ */
 ssize_t Swipl_IO::_read_(char *buf, size_t bufsize) {
 
-    if (!installed) {
-        int rc =
-        PL_thread_at_exit(eng_at_exit, this, FALSE);
-        qDebug() << "installed" << rc;
-        installed = true;
+    qDebug() << "_read_" << CVP(target);
+    int thid = PL_thread_self();
+
+    // handle setup interthread and termination
+    for ( ; ; ) {
+        {   QMutexLocker lk(&sync);
+            if (target) {
+                if (!target->thids.contains(thid)) {
+                    target->add_thread(thid);
+                    int rc =
+                    PL_thread_at_exit(eng_at_exit, this, FALSE);
+                    qDebug() << "installed" << rc;
+                }
+                break;
+            }
+        }
+        qDebug() << "sleep" << CVP(CT);
+        SwiPrologEngine::msleep(10);
     }
 
     PL_write_prompt(TRUE);
+    emit user_prompt(thid, SwiPrologEngine::is_tty());
 
-    emit user_prompt(PL_thread_self(), SwiPrologEngine::is_tty());
+    for ( ; ; ) {
 
-_sync_:
+        {   QMutexLocker lk(&sync);
 
-    ready.wait(&sync);
+            if (!query.isEmpty()) {
+                try {
+                    int rc = PlCall(query.toStdWString().data());
+                    qDebug() << "PlCall" << query << rc;
+                }
+                catch(PlException e) {
+                    qDebug() << t2w(e);
+                }
+                query.clear();
+            }
 
-    if (!query.isEmpty()) {
-        try {
-            PlCall(query.toStdWString().data());
+            uint n = buffer.length();
+            Q_ASSERT(bufsize >= n);
+            if (n > 0) {
+                uint l = bufsize < n ? bufsize : n;
+                qstrncpy(buf, buffer, l + 1);
+                buffer.clear();
+                return l;
+            }
         }
-        catch(PlException e) {
-            qDebug() << t2w(e);
-        }
-        query.clear();
-        goto _sync_;
+
+        SwiPrologEngine::msleep(10);
     }
-
-    uint n = buffer.length();
-    Q_ASSERT(bufsize >= n);
-    uint l = bufsize < n ? bufsize : n;
-    qstrncpy(buf, buffer, l + 1);
-    return l;
 }
 
+/** syncronized storage of user input from console front end
+ */
 void Swipl_IO::user_input(QString s) {
+    QMutexLocker lk(&sync);
     buffer = s.toUtf8();
-    ready.wakeOne();
-}
-
-void Swipl_IO::wait_console() {
-    sync.lock();
-    ready.wait(&sync);
 }
 
 void Swipl_IO::take_input(QString cmd) {
+    QMutexLocker lk(&sync);
     buffer = cmd.toUtf8();
-    ready.wakeOne();
 }
 
 void Swipl_IO::eng_at_exit(void *p) {
     auto e = pq_cast<Swipl_IO>(p);
     emit e->sig_eng_at_exit();
-    qDebug() << "eng_at_exit" << CVP(p) << CVP(CT) << CVP(e);
 }
 
-void Swipl_IO::attached(ConsoleEdit *c) { Q_UNUSED(c);
-    Q_ASSERT(target == c);
-    ready.wakeOne();
+void Swipl_IO::attached(ConsoleEdit *c) {
+    QMutexLocker lk(&sync);
+    Q_ASSERT(target == 0);
+    target = c;
 }
 
-void Swipl_IO::query_run(QString query) {
-    this->query = query;
-    ready.wakeOne();
+void Swipl_IO::query_run(QString newquery) {
+    QMutexLocker lk(&sync);
+    Q_ASSERT(query.isEmpty());
+    query = newquery;
 }

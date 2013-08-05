@@ -67,7 +67,7 @@ public:
         ~in_thread();
 
         /** run named <n> script <t> in current thread */
-        bool named_load(QString name, QString script);
+        bool named_load(QString name, QString script, bool silent = true);
 
     private:
         PlFrame *frame;
@@ -105,33 +105,33 @@ public slots:
     void user_input(QString input);
 
 protected:
+
+    // run a polling loop on buffer and queries
     virtual void run();
 
     int argc;
     char **argv;
 
-    QMutex sync;
-    QByteArray buffer;
-    QWaitCondition ready;
-
     /** queries to be dispatched to engine thread */
     struct query {
-        bool is_script;
-        QString name;
-        QString text;
+        bool is_script; // change entry type
+        QString name;   // arbitrary symbol
+        QString text;   // if is_script is path name, else query text
     };
-    QList<query> queries;
+
+    QMutex sync;
+    QByteArray buffer;      // syncronized !
+    QList<query> queries;   // syncronized !
+
+    void serve_query(query q);
 
     static ssize_t _read_(void *handle, char *buf, size_t bufsize);
     static ssize_t _write_(void *handle, char *buf, size_t bufsize);
     ssize_t _read_(char *buf, size_t bufsize);
-
-    /** Prolog (background) thread ID
-    int thid; */
-
     ssize_t _read_f(char *buf, size_t bufsize);
 
 private slots:
+
     void awake();
 
 private:
@@ -139,8 +139,6 @@ private:
     /** main console singleton (thread constructed differently) */
     static SwiPrologEngine* spe;
     friend struct in_thread;
-
-    bool no_output;
 };
 
 #endif // SWIPROLOGENGINE_H

@@ -44,9 +44,6 @@ public:
     /** standard interface */
     explicit Swipl_IO(QObject *parent = 0);
 
-    /** call from GUI thread: need waiting til object complete construction */
-    void wait_console();
-
     /** surrogate signal/slot not working in foreign thread */
     void take_input(QString cmd);
 
@@ -57,8 +54,8 @@ public:
 
 private:
 
+    /** syncronize inter thread access to buffer and query */
     QMutex sync;
-    QWaitCondition ready;
 
     /** output text buffer, made UTF8 */
     QByteArray buffer;
@@ -71,7 +68,6 @@ private:
 
     /** termination control */
     static void eng_at_exit(void *);
-    bool installed;
 
 signals:
 

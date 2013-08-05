@@ -525,6 +525,7 @@ PREDICATE(win_message_box, 2) {
  */
 PREDICATE0(interrupt) {
     ConsoleEdit* c = console_by_thread();
+    qDebug() << "interrupt" << CVP(c);
     if (c) {
         c->int_request();
         return TRUE;

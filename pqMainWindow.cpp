@@ -27,6 +27,7 @@
 #include <QDebug>
 #include <QTimer>
 #include <QMessageBox>
+#include <QApplication>
 
 inline ConsoleEdit *wid2con(QWidget *w) { return qobject_cast<ConsoleEdit*>(w); }
 
@@ -111,7 +112,7 @@ void pqMainWindow::addConsole(ConsoleEdit *console, QString title) {
         t->setTabsClosable(true);
         QString T = windowTitle();
         if (T.isEmpty())
-            T = "SwiPl";
+            T = "swipl-win";
         t->addTab(c, T);
         setCentralWidget(t);
         connect(t, SIGNAL(tabCloseRequested(int)), this, SLOT(tabCloseRequested(int)));
@@ -124,7 +125,13 @@ void pqMainWindow::addConsole(ConsoleEdit *console, QString title) {
  */
 void pqMainWindow::tabCloseRequested(int tabId) {
     if (tabId == 0) {
-        QMessageBox::information(this, tr("Cannot close"), tr("Sorry, the primary console cannot be closed"));
+        QMessageBox b(this);
+        b.setWindowTitle(tr("Cannot close"));
+        b.setText(tr("This is the primary console.\nDo you want to quit?"));
+        b.setIcon(b.Question);
+        b.setStandardButtons(b.Yes | b.No);
+        if (b.exec() == b.Yes)
+            qApp->quit();
         return;
     }
 
@@ -133,6 +140,8 @@ void pqMainWindow::tabCloseRequested(int tabId) {
         consoles()->removeTab(tabId);
 }
 
+/** close console by object
+ */
 void pqMainWindow::remConsole(ConsoleEdit *c) {
     auto t = consoles();
     if (t) {

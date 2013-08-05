@@ -26,6 +26,7 @@
 #include "pqConsole_global.h"
 #include <QMainWindow>
 #include <QTabWidget>
+#include <QCloseEvent>
 
 // forward declaration, avoid including all SWI-Prolog interface...
 class ConsoleEdit;

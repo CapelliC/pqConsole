@@ -29,6 +29,7 @@
 #include "pqMainWindow.h"
 #include <signal.h>
 
+#include <QTime>
 #include <QRegExp>
 #include <QtDebug>
 #include <QAction>
@@ -38,8 +39,6 @@
 #include <QMainWindow>
 #include <QApplication>
 #include <QStringListModel>
-
-//ConsoleEdit *cmain;
 
 /** some default color, seems sufficiently visible to me
  */
@@ -89,6 +88,12 @@ ConsoleEdit::ConsoleEdit(int argc, char **argv, QWidget *parent)
     eng->start(argc, argv);
 }
 
+void ConsoleEdit::add_thread(int id) {
+    Q_ASSERT(id > 0);
+    Q_ASSERT(thids.empty());
+    thids.append(id);
+}
+
 /** this start an *interactor* console hosted in a QMainWindow
  */
 ConsoleEdit::ConsoleEdit(Swipl_IO* io, QString title)
@@ -114,7 +119,6 @@ ConsoleEdit::ConsoleEdit(Swipl_IO* io)
  *  of instancing in a tabbed interface
  */
 void ConsoleEdit::setup(Swipl_IO* io) {
-    io->target = this;
 
     setup();
 
@@ -125,7 +129,7 @@ void ConsoleEdit::setup(Swipl_IO* io) {
 
     connect(io, SIGNAL(sig_eng_at_exit()), this, SLOT(eng_completed()));
 
-    QTimer::singleShot(100, this, SLOT(attached()));
+    io->attached(this);
 }
 
 /** common setup between =main= and =thread= console
@@ -137,7 +141,6 @@ void ConsoleEdit::setup() {
     promptPosition = -1;
 
     qApp->installEventFilter(this);
-    thid = -1;
     count_output = 0;
     update_refresh_rate = 100;
     preds = 0;
@@ -286,8 +289,8 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
     case Key_C:
     // case Key_Pause: I thought this one also work. It's not true.
         if (ctrl && status == running) {
-            qDebug() << "^C" << thid << status;
-            PL_thread_raise(thid, SIGINT);
+            qDebug() << "^C" << thids << status;
+            PL_thread_raise(thids[0], SIGINT);
             return;
         }
         // fall throu
@@ -518,15 +521,15 @@ void ConsoleEdit::user_output(QString text) {
         instext(text);
 }
 
+bool ConsoleEdit::match_thread(int thread_id) const {
+    return thread_id == -1 || thids.contains(thread_id);
+}
+
 /** issue an input request
  */
 void ConsoleEdit::user_prompt(int threadId, bool tty) {
 
-    Q_ASSERT(thid == -1 || thid == threadId);
-    if (thid == -1) {
-        Q_ASSERT(status == idle);
-        thid = threadId;
-    }
+    Q_ASSERT(thids.contains(threadId));
 
     is_tty = tty;
 
@@ -593,10 +596,10 @@ bool ConsoleEdit::eventFilter(QObject *, QEvent *event) {
  */
 bool ConsoleEdit::can_close() {
 
-    qDebug() << "can_close" << thid;
+    qDebug() << "can_close" << thids;
 
     if (is_running()) {
-        QMessageBox b;
+        QMessageBox b(this);
         b.setText(tr("Thread %1 is running a query.\nQuit anyway ?").arg(thread_id()));
         b.setStandardButtons(b.Yes|b.No);
         b.setIcon(b.Question);
@@ -609,7 +612,7 @@ bool ConsoleEdit::can_close() {
         for (int i = 0; i < 10; ++i) {
             if ((quit = eng->isFinished()))
                 break;
-            qDebug() << "not isFinished" << thid << i;
+            qDebug() << "not isFinished" << thids << i;
             SwiPrologEngine::msleep(500);
         }
     } else if (io) {
@@ -617,7 +620,7 @@ bool ConsoleEdit::can_close() {
         SwiPrologEngine::msleep(500);
     }
 
-    qDebug() << "can_close" << thid << "quit" << quit;
+    qDebug() << "can_close" << thids << "quit" << quit;
 
     return quit;
 }
@@ -671,9 +674,9 @@ void ConsoleEdit::set_cursor_tip(QTextCursor c) {
 }
 
 void ConsoleEdit::int_request() {
-    qDebug() << "int_request" << thid;
-    if (thid > 0)
-        PL_thread_raise(thid, SIGINT);
+    qDebug() << "int_request" << thids;
+    if (!thids.empty())
+        PL_thread_raise(thids[0], SIGINT);
 }
 
 /** serve the user menu issuing the command
@@ -681,35 +684,30 @@ void ConsoleEdit::int_request() {
 void ConsoleEdit::onConsoleMenuAction() {
     auto a = qobject_cast<QAction *>(sender());
     if (a) {
-        QString action = a->toolTip(),
-                module = action.left(action.indexOf(':')),
-                query = action.mid(action.indexOf(':') + 1);
+        QString action = a->toolTip();
 
         if (auto w = find_parent<pqMainWindow>(this)) {
             if (ConsoleEdit *target = w->consoleActive()) {
 
-                if (query == "interrupt") {
-                    if (target->thid > 0)
-                        PL_thread_raise(target->thid, SIGINT);
-                    return;
-                }
+                qDebug() << action << target->status << QTime::currentTime();
 
                 if (target->status == running) {
-                    FlushOutputEvents::disabled = true;
-                    FlushOutputEvents *f = target->eng;
-                    if (!f)
-                        f = target->io;
-                    Q_ASSERT(f->target == target);
 
                     {   SwiPrologEngine::in_thread e;
+                        int t = PL_thread_self();
+                        target->thids.append(t);
                         try {
-                            PL_set_prolog_flag("console_thread", PL_INTEGER, target->thid);
+                            PL_set_prolog_flag("console_thread", PL_INTEGER, t);
                             PlCall(action.toUtf8());
+
+                            for (int c = 0; c < 100; c++)
+                                do_events(10);
+
                         } catch(PlException e) {
                             qDebug() << CCP(e);
                         }
+                        target->thids.removeLast();
                     }
-                    FlushOutputEvents::disabled = false;
                     return;
                 }
                 target->query_run(action);
@@ -728,27 +726,16 @@ void ConsoleEdit::tty_clear() {
 /** issue instancing in GUI thread (cant moveToThread a Widget)
  */
 void ConsoleEdit::new_console(Swipl_IO *io, QString title) {
-    //Q_ASSERT(io->host == 0);
     Q_ASSERT(io->target == 0);
 
     auto r = new req_new_console(io, title);
     QApplication::instance()->postEvent(this, r);
-
-    io->wait_console();
-}
-
-/** let background thread resume execution
- */
-void ConsoleEdit::attached() {
-    io->attached(this);
 }
 
 /** added to serve creation in thread
  *  signal from foreign thread to Qt was not fired
  */
 void ConsoleEdit::customEvent(QEvent *event) {
-
-    qDebug() << "new_console_req" << CVP(this) << CVP(CT);
 
     Q_ASSERT(event->type() == QEvent::User);
     auto e = static_cast<req_new_console *>(event);
@@ -763,8 +750,6 @@ void ConsoleEdit::customEvent(QEvent *event) {
         mw->addConsole(nc = new ConsoleEdit(e->iop), e->title);
     else    /* fire and forget :) auto ce = */
         nc = new ConsoleEdit(e->iop, e->title);
-
-    e->iop->target = nc;
 }
 
 /** store lines from swipl-win console protocol
@@ -781,8 +766,10 @@ void ConsoleEdit::add_history_line(QString line)
 void ConsoleEdit::eng_completed() {
     if (eng)
         qApp->quit();
-    else if (io)
-        find_parent<pqMainWindow>(this)->remConsole(this);
+    else if (io) {
+        if (auto mw = find_parent<pqMainWindow>(this))
+            mw->remConsole(this);
+    }
 }
 
 /** dispatch execution to appropriate object
@@ -803,12 +790,29 @@ void ConsoleEdit::query_run(QString module, QString call) {
         query_run(module + ":" + call);
 }
 
-ConsoleEdit::exec_sync::exec_sync() {
-    sync.lock();
+ConsoleEdit::exec_sync::exec_sync(int timeout_ms) : timeout_ms(timeout_ms) {
+    stop_ = CT;
+    go_ = 0;
 }
 void ConsoleEdit::exec_sync::stop() {
-    ready.wait(&sync);
+    Q_ASSERT(CT == stop_);
+    for ( ; ; ) {
+        {   QMutexLocker lk(&sync);
+            if (go_)
+                break;
+        }
+        SwiPrologEngine::msleep(10);
+    }
+    //Q_ASSERT(go_ && go_ != stop_);
 }
 void ConsoleEdit::exec_sync::go() {
-    ready.wakeOne();
+    Q_ASSERT(go_ == 0);
+    Q_ASSERT(stop_ != 0);
+    auto t = CT;
+    if (stop_ != t) {
+        QMutexLocker lk(&sync);
+        go_ = t;
+    }
+    else
+        go_ = t;
 }

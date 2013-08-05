@@ -23,10 +23,16 @@
 #ifndef CONSOLEEDIT_H
 #define CONSOLEEDIT_H
 
-#include <QPlainTextEdit>
+#include <QEvent>
 #include <QCompleter>
 
-typedef QPlainTextEdit ConsoleEditBase;
+#ifndef PQCONSOLE_NO_HTML
+    #include <QTextEdit>
+    typedef QTextEdit ConsoleEditBase;
+#else
+    #include <QPlainTextEdit>
+    typedef QPlainTextEdit ConsoleEditBase;
+#endif
 
 #include "SwiPrologEngine.h"
 #include "Completion.h"
@@ -60,10 +66,11 @@ public:
     /** a console is associated with a worker Prolog thread
      *  should handle the case of yet-to-be-initialized root console
      */
-    bool match_thread(int thread_id) const { return thid == thread_id || thid == -1 || thread_id == -1; }
+    bool match_thread(int thread_id) const;
 
     /** should always match PL_thread_id() ... */
-    int thread_id() const { return thid; }
+    int thread_id() const { return thids[0]; }
+    void add_thread(int id);
 
     /** remove all text */
     void tty_clear();
@@ -83,13 +90,15 @@ public:
 
     /** 5. helper syncronization for modal loop */
     struct exec_sync {
-        exec_sync();
+        exec_sync(int timeout_ms = 100);
 
         void stop();
         void go();
 
+    private:
+        QThread *stop_, *go_;
         QMutex sync;
-        QWaitCondition ready;
+        int timeout_ms;
     };
 
     /** give access to rl_... predicates */
@@ -162,7 +171,7 @@ protected:
     void compinit2(QTextCursor c);
 
     /** associated thread id (see PL_thread_self()) */
-    int thid;
+    QList<int> thids;
 
     /** wiring etc... */
     void setup();
@@ -177,6 +186,8 @@ protected:
     e_status status;
     int promptPosition;
     bool is_tty;
+
+    // while solving inter threads problems...
     friend class Swipl_IO;
 
     /** need to sense the processor type to execute code
@@ -209,9 +220,6 @@ protected slots:
 
     /** push completion request in current command line */
     void insertCompletion(QString);
-
-    /** win_ ... API threaded construction: complete interactor setup */
-    void attached();
 
     /** when engine gracefully complete-... */
     void eng_completed();

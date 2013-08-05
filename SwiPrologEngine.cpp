@@ -50,9 +50,10 @@ SwiPrologEngine::SwiPrologEngine(ConsoleEdit *target, QObject *parent)
 
 SwiPrologEngine::~SwiPrologEngine() {
     if (spe == this) {
-        spe = 0;
-        ready.wakeAll();
-
+        {   QMutexLocker lk(&sync);
+            spe = 0;
+        }
+        //ready.wakeAll();
         bool ok = wait(1000);
         Q_ASSERT(ok);
     }
@@ -70,8 +71,10 @@ void SwiPrologEngine::start(int argc, char **argv) {
 }
 
 void SwiPrologEngine::user_input(QString s) {
+    QMutexLocker lk(&sync);
     buffer = s.toUtf8();
-    ready.wakeOne();
+    //buffer = s;//.toStdWString();
+    //ready.wakeOne();
 }
 
 /** fill the buffer
@@ -83,7 +86,6 @@ ssize_t SwiPrologEngine::_read_(void *handle, char *buf, size_t bufsize) {
 }
 
 /** background read & query loop
- */
 ssize_t SwiPrologEngine::_read_(char *buf, size_t bufsize) {
 
 _wait_:
@@ -111,6 +113,7 @@ _wait_:
                 try {
                     if (n.isEmpty()) {
                         PlQuery q("call", PlTermv(PlCompound(t.toUtf8())));
+                        //PlQuery q("call", PlTermv(PlCompound(t.toStdWString().data())));
                         int occurrences = 0;
                         while (q.next_solution())
                             emit query_result(t, ++occurrences);
@@ -118,6 +121,7 @@ _wait_:
                     }
                     else {
                         PlQuery q(A(n), "call", PlTermv(PlCompound(t.toUtf8())));
+                        //PlQuery q(A(n), "call", PlTermv(PlCompound(t.toStdWString().data())));
                         int occurrences = 0;
                         while (q.next_solution())
                             emit query_result(t, ++occurrences);
@@ -138,7 +142,68 @@ _wait_:
     Q_ASSERT(bufsize >= n);
     uint l = bufsize < n ? bufsize : n;
     qstrncpy(buf, buffer, l + 1);
+    //wcsncpy();
+
     return l;
+}
+*/
+
+ssize_t SwiPrologEngine::_read_(char *buf, size_t bufsize) {
+
+    emit user_prompt(PL_thread_self(), is_tty());
+    //thid = -1;
+
+    for ( ; ; ) {
+
+        {   QMutexLocker lk(&sync);
+
+            if (!spe) // terminated
+                return 0;
+
+            if (!queries.empty())
+                serve_query(queries.takeFirst());
+
+            uint n = buffer.length();
+            if (n > 0) {
+                Q_ASSERT(bufsize >= n);
+                uint l = bufsize < n ? bufsize : n;
+                qstrncpy(buf, buffer, l + 1);
+                buffer.clear();
+                return l;
+            }
+        }
+
+        msleep(10);
+    }
+}
+
+/** async query interface served from same thread
+ */
+void SwiPrologEngine::serve_query(query p) {
+    Q_ASSERT(!p.is_script);
+    QString n = p.name, t = p.text;
+    try {
+        if (n.isEmpty()) {
+            PlQuery q("call", PlTermv(PlCompound(t.toUtf8())));
+            //PlQuery q("call", PlTermv(PlCompound(t.toStdWString().data())));
+            int occurrences = 0;
+            while (q.next_solution())
+                emit query_result(t, ++occurrences);
+            emit query_complete(t, occurrences);
+        }
+        else {
+            PlQuery q(A(n), "call", PlTermv(PlCompound(t.toUtf8())));
+            //PlQuery q(A(n), "call", PlTermv(PlCompound(t.toStdWString().data())));
+            int occurrences = 0;
+            while (q.next_solution())
+                emit query_result(t, ++occurrences);
+            emit query_complete(t, occurrences);
+        }
+    }
+    catch(PlException ex) {
+        qDebug() << t << CCP(ex);
+        emit query_exception(n, CCP(ex));
+    }
 }
 
 /** empty the buffer
@@ -161,6 +226,7 @@ void SwiPrologEngine::run() {
     PL_set_prolog_flag("console_menu", PL_BOOL, TRUE);
     PL_set_prolog_flag("console_menu_version", PL_ATOM, "qt");
 
+    target->add_thread(1);
     PlEngine e(argc, argv);
 
     for (int a = 0; a < argc; ++a)
@@ -168,21 +234,30 @@ void SwiPrologEngine::run() {
     delete [] argv;
     argc = 0;
 
+    /*
+    int tid = PL_thread_self();
+    target->run_function([&]() {
+        target->add_thread(tid);
+    });
+    */
+    //target->add_thread(PL_thread_self());
     PL_toplevel();
 }
 
 /** push an unnamed query, then issue delayed execution
  */
 void SwiPrologEngine::query_run(QString text) {
+    QMutexLocker lk(&sync);
     queries.append(query {false, "", text});
-    ready.wakeOne();
+    //ready.wakeOne();
 }
 
 /** push a named query, then issue delayed execution
  */
 void SwiPrologEngine::query_run(QString module, QString text) {
+    QMutexLocker lk(&sync);
     queries.append(query {false, module, text});
-    ready.wakeOne();
+    //ready.wakeOne();
 }
 
 /** allows to run a delayed script from resource at startup
@@ -220,6 +295,7 @@ SwiPrologEngine::in_thread::in_thread()
         msleep(100);
     while (spe->argc)
         msleep(100);
+
     int id = PL_thread_attach_engine(0);
     Q_ASSERT(id >= 0);
     frame = new PlFrame;
@@ -232,19 +308,19 @@ SwiPrologEngine::in_thread::~in_thread() {
 
 /** run script <t>, named <n> in current thread
  */
-bool SwiPrologEngine::in_thread::named_load(QString n, QString t) {
+bool SwiPrologEngine::in_thread::named_load(QString n, QString t, bool silent) {
     try {
         PlTerm cs, s, opts;
         if (    PlCall("atom_codes", PlTermv(A(t), cs)) &&
                 PlCall("open_chars_stream", PlTermv(cs, s))) {
             PlTail l(opts);
             l.append(PlCompound("stream", PlTermv(s)));
-            l.append(PlCompound("silent", PlTermv(A("true"))));
+            if (silent)
+                l.append(PlCompound("silent", PlTermv(A("true"))));
             l.close();
-            if (PlCall("load_files", PlTermv(A(n), opts))) {
-                PlCall("close", PlTermv(s));
-                return true;
-            }
+            bool rc = PlCall("load_files", PlTermv(A(n), opts));
+            PlCall("close", PlTermv(s));
+            return rc;
         }
     }
     catch(PlException ex) {

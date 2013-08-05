@@ -38,10 +38,6 @@ struct PQCONSOLESHARED_EXPORT FlushOutputEvents {
     ConsoleEdit *target;
     QElapsedTimer measure_calls;
     int msec_delta_refresh;
-
-    //QThread *synced;
-    // hack around Prolog driven menu processing
-    static bool disabled;
 };
 
 #endif // FLUSHOUTPUTEVENTS_H
