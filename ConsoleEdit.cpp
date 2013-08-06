@@ -595,7 +595,9 @@ bool ConsoleEdit::event(QEvent *event) {
  */
 bool ConsoleEdit::eventFilter(QObject *, QEvent *event) {
     if (event->type() == QEvent::MouseMove) {
-        set_cursor_tip(cursorForPosition(static_cast<QMouseEvent*>(event)->pos()));
+        QTextCursor c = cursorForPosition(static_cast<QMouseEvent*>(event)->pos());
+        set_cursor_tip(c);
+        clickable_message_line(c, true);
     }
     return false;
 }
@@ -641,7 +643,9 @@ void ConsoleEdit::onCursorPositionChanged() {
     set_cursor_tip(c);
     if (fixedPosition > c.position()) {
         viewport()->setCursor(Qt::OpenHandCursor);
+        clickable_message_line(c, false);
 
+#if 0
         // attempt to jump on message location
         c.movePosition(c.StartOfLine);
         c.movePosition(c.EndOfLine, c.KeepAnchor);
@@ -669,8 +673,67 @@ void ConsoleEdit::onCursorPositionChanged() {
                     query_run(QString("edit('%1':%2)").arg(path).arg(numline));
             }
         }
+#endif
+
     } else
         viewport()->setCursor(Qt::IBeamCursor);
+}
+
+/** check if line content is appropriate, then highlight or open editor on it
+ */
+void ConsoleEdit::clickable_message_line(QTextCursor c, bool highlight) {
+
+    c.movePosition(c.StartOfLine);
+
+    int cposition_ = c.position();
+    QTextCharFormat fposition_ = c.charFormat();
+
+    c.movePosition(c.EndOfLine, c.KeepAnchor);
+
+    QString line = c.selectedText();
+    QStringList parts = line.split(':');
+
+    /* using regex would be more elegant, but I found difficult to get it working properly...
+    static QRegExp msg("(ERROR|Warning):([^:]+):*$");
+    if (msg.exactMatch(line)) {
+        parts = msg.capturedTexts();
+    }
+    */
+    if (parts.count() > 3 && (parts[0] == QString("Warning") || parts[0] == QString("ERROR"))) {
+        int p = 1;
+        if (parts[p].length() == 2) { // Windoze paths: C:/ etc
+            parts[p+1] = parts[p] + ':' + parts[p+1];
+            ++p;
+        }
+        if (parts[p][0] == ' ') {
+            QString path = parts[p].mid(1);
+            bool is_numl;
+            int numline = parts[p+1].toInt(&is_numl);
+            if (is_numl) {
+                if (highlight) {
+                    if (cposition != cposition_) {
+                        cposition = cposition_;
+                        fposition = fposition_;
+                        QTextCharFormat f = fposition_;
+                        f.setFontUnderline(true);
+                        c.setCharFormat(f);
+                        qDebug() << "setting underline";
+                    }
+                    return;
+                }
+                else
+                    query_run(QString("edit('%1':%2)").arg(path).arg(numline));
+            }
+        }
+    }
+
+    if (fposition != QTextCharFormat()) {
+        c.setPosition(cposition);
+        c.movePosition(c.EndOfLine, c.KeepAnchor);
+        c.setCharFormat(fposition);
+        fposition = QTextCharFormat();
+        cposition = -1;
+    }
 }
 
 /** setup tooltip info
@@ -681,6 +744,8 @@ void ConsoleEdit::set_cursor_tip(QTextCursor c) {
         setToolTip(last_tip);
 }
 
+/** pass interrupt request to PlEngine
+ */
 void ConsoleEdit::int_request() {
     qDebug() << "int_request" << thids;
     if (!thids.empty())

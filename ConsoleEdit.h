@@ -200,6 +200,11 @@ protected:
     void query_run(QString call);
     void query_run(QString module, QString call);
 
+    /** check if line content is appropriate, then highlight or open editor on it */
+    void clickable_message_line(QTextCursor c, bool highlight);
+    int cposition;
+    QTextCharFormat fposition;
+
 public slots:
 
     /** display different cursor where editing available */
