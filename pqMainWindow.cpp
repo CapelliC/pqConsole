@@ -48,6 +48,8 @@ pqMainWindow::pqMainWindow(int argc, char *argv[]) {
  */
 void pqMainWindow::closeEvent(QCloseEvent *event) {
 
+    qDebug() << "closeEvent";
+
     auto t = consoles();
     if (t) {
         for (int c = 0; c < t->count(); ++c)
@@ -60,6 +62,8 @@ void pqMainWindow::closeEvent(QCloseEvent *event) {
         event->ignore();
         return;
     }
+
+    qDebug() << "closeEvent yes";
 }
 
 /** pass initialization script to actual interface
@@ -112,13 +116,14 @@ void pqMainWindow::addConsole(ConsoleEdit *console, QString title) {
         t->setTabsClosable(true);
         QString T = windowTitle();
         if (T.isEmpty())
-            T = "swipl-win";
+            T = "main";
         t->addTab(c, T);
         setCentralWidget(t);
         connect(t, SIGNAL(tabCloseRequested(int)), this, SLOT(tabCloseRequested(int)));
     }
     int i = t->addTab(console, title);
     t->setCurrentIndex(i);
+    console->setFocus();
 }
 
 /** handle the close button, issuing console request and removing from tab

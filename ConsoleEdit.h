@@ -125,6 +125,9 @@ protected:
     /** support completion */
     virtual void focusInEvent(QFocusEvent *e);
 
+    /** filter out insertion when cursor is not in editable position */
+    virtual void insertFromMimeData(const QMimeData *source);
+
     /** support SWI... exec thread console creation */
     struct req_new_console : public QEvent {
         Swipl_IO *iop;

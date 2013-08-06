@@ -33,6 +33,7 @@
 #include "Preferences.h"
 #include "pqMainWindow.h"
 
+#include <QTime>
 #include <QStack>
 #include <QDebug>
 #include <QMenuBar>
@@ -647,7 +648,9 @@ PREDICATE0(select_font) {
 PREDICATE0(quit_console) {
     ConsoleEdit* c = console_by_thread();
     if (c) {
+        qDebug() << "? quit_console" << QTime::currentTime();
         c->exec_func([](){ qApp->quit(); });
+        qDebug() << "! qApp->quit" << QTime::currentTime();
         return TRUE;
     }
     return FALSE;

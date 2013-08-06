@@ -437,6 +437,14 @@ void ConsoleEdit::focusInEvent(QFocusEvent *e) {
     ConsoleEditBase::focusInEvent(e);
 }
 
+/** filter out insertion when cursor is not in editable position
+ */
+void ConsoleEdit::insertFromMimeData(const QMimeData *source) {
+    qDebug() << "insertFromMimeData" << source;
+    if (textCursor().position() >= fixedPosition)
+        ConsoleEditBase::insertFromMimeData(source);
+}
+
 /** \brief send text to output
  *
  *  Decode ANSI terminal sequences, to output coloured text.
