@@ -188,6 +188,7 @@ protected:
     bool is_tty;
 
     // while solving inter threads problems...
+    friend class SwiPrologEngine;
     friend class Swipl_IO;
 
     /** need to sense the processor type to execute code
