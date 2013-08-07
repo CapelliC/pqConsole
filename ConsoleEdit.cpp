@@ -441,8 +441,13 @@ void ConsoleEdit::focusInEvent(QFocusEvent *e) {
  */
 void ConsoleEdit::insertFromMimeData(const QMimeData *source) {
     qDebug() << "insertFromMimeData" << source;
-    if (textCursor().position() >= fixedPosition)
+    auto c = textCursor();
+    if (c.position() >= fixedPosition)
         ConsoleEditBase::insertFromMimeData(source);
+    else {
+        c.movePosition(c.End);
+        c.insertText(source->text());
+    }
 }
 
 /** \brief send text to output
@@ -587,7 +592,6 @@ bool ConsoleEdit::event(QEvent *event) {
         }
         return true;
     }
-
     return ConsoleEditBase::event(event);
 }
 
@@ -602,79 +606,39 @@ bool ConsoleEdit::eventFilter(QObject *, QEvent *event) {
     return false;
 }
 
+/** the user identifying label is attached somewhere to parents chain
+ */
+QString ConsoleEdit::titleLabel() {
+    QString title;
+    for (QWidget *p = parentWidget(); title.isEmpty() && p; p = p->parentWidget())
+        if (auto t = qobject_cast<QTabWidget*>(p))
+            title = t->tabText(t->indexOf(this));
+        else
+            title = p->windowTitle();
+    return title;
+}
+
 /** attempt to gracefully stop XPCE thread
  */
 bool ConsoleEdit::can_close() {
-
-    qDebug() << "can_close" << thids;
-
     if (is_running()) {
         QMessageBox b(this);
-        b.setText(tr("Thread %1 is running a query.\nQuit anyway ?").arg(thread_id()));
+        b.setText(tr("[%1] is running a query.\nQuit anyway ?").arg(titleLabel())); //thread_id()
         b.setStandardButtons(b.Yes|b.No);
         b.setIcon(b.Question);
         return b.exec() == b.Yes;
     }
-
-    bool quit = true;
-    if (eng) {
-        eng->query_run("halt");
-        for (int i = 0; i < 10; ++i) {
-            if ((quit = eng->isFinished()))
-                break;
-            qDebug() << "not isFinished" << thids << i;
-            SwiPrologEngine::msleep(500);
-        }
-    } else if (io) {
-        io->take_input("end_of_file.\n");
-        SwiPrologEngine::msleep(500);
-    }
-
-    qDebug() << "can_close" << thids << "quit" << quit;
-
-    return quit;
+    return true;
 }
 
 /** display different cursor where editing available
  */
 void ConsoleEdit::onCursorPositionChanged() {
     QTextCursor c = textCursor();
-
     set_cursor_tip(c);
     if (fixedPosition > c.position()) {
         viewport()->setCursor(Qt::OpenHandCursor);
         clickable_message_line(c, false);
-
-#if 0
-        // attempt to jump on message location
-        c.movePosition(c.StartOfLine);
-        c.movePosition(c.EndOfLine, c.KeepAnchor);
-
-        QString line = c.selectedText();
-        QStringList parts = line.split(':');
-
-        /* using regex would be more elegant, but I found difficult to get it working properly...
-        static QRegExp msg("(ERROR|Warning):([^:]+):*$");
-        if (msg.exactMatch(line)) {
-            parts = msg.capturedTexts();
-        }
-        */
-        if (parts.count() > 3 && (parts[0] == QString("Warning") || parts[0] == QString("ERROR"))) {
-            int p = 1;
-            if (parts[p].length() == 2) { // Windoze paths: C:/ etc
-                parts[p+1] = parts[p] + ':' + parts[p+1];
-                ++p;
-            }
-            if (parts[p][0] == ' ') {
-                QString path = parts[p].mid(1);
-                bool is_numl;
-                int numline = parts[p+1].toInt(&is_numl);
-                if (is_numl)
-                    query_run(QString("edit('%1':%2)").arg(path).arg(numline));
-            }
-        }
-#endif
-
     } else
         viewport()->setCursor(Qt::IBeamCursor);
 }
@@ -717,7 +681,6 @@ void ConsoleEdit::clickable_message_line(QTextCursor c, bool highlight) {
                         QTextCharFormat f = fposition_;
                         f.setFontUnderline(true);
                         c.setCharFormat(f);
-                        qDebug() << "setting underline";
                     }
                     return;
                 }
@@ -768,11 +731,11 @@ void ConsoleEdit::onConsoleMenuAction() {
 
                     {   SwiPrologEngine::in_thread e;
                         int t = PL_thread_self();
+                        Q_ASSERT(!target->thids.contains(t));
                         target->thids.append(t);
                         try {
                             PL_set_prolog_flag("console_thread", PL_INTEGER, t);
-                            PlCall(action.toUtf8());
-
+                            PlCall(action.toStdWString().data());
                             for (int c = 0; c < 100; c++)
                                 do_events(10);
 

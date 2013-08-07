@@ -23,6 +23,7 @@
 #include "pqMainWindow.h"
 #include "ConsoleEdit.h"
 #include "PREDICATE.h"
+#include "do_events.h"
 
 #include <QDebug>
 #include <QTimer>
@@ -47,8 +48,7 @@ pqMainWindow::pqMainWindow(int argc, char *argv[]) {
 /** handle application closing, WRT XPCE termination
  */
 void pqMainWindow::closeEvent(QCloseEvent *event) {
-
-    qDebug() << "closeEvent";
+    ConsoleEdit *main;
 
     auto t = consoles();
     if (t) {
@@ -57,13 +57,18 @@ void pqMainWindow::closeEvent(QCloseEvent *event) {
                 event->ignore();
                 return;
             }
+        main = wid2con(t->widget(0));
     }
-    else if (!wid2con(centralWidget())->can_close()) {
+    else if (!(main = wid2con(centralWidget()))->can_close()) {
         event->ignore();
         return;
     }
 
-    qDebug() << "closeEvent yes";
+    SwiPrologEngine::in_thread e_;
+    if (PlCall("current_prolog_flag(xpce, true)")) {
+        if (!PlCall("send(@pce, die, 0)"))
+            event->ignore();
+    }
 }
 
 /** pass initialization script to actual interface
@@ -116,7 +121,7 @@ void pqMainWindow::addConsole(ConsoleEdit *console, QString title) {
         t->setTabsClosable(true);
         QString T = windowTitle();
         if (T.isEmpty())
-            T = "main";
+            T = "Main";
         t->addTab(c, T);
         setCentralWidget(t);
         connect(t, SIGNAL(tabCloseRequested(int)), this, SLOT(tabCloseRequested(int)));
@@ -129,29 +134,26 @@ void pqMainWindow::addConsole(ConsoleEdit *console, QString title) {
 /** handle the close button, issuing console request and removing from tab
  */
 void pqMainWindow::tabCloseRequested(int tabId) {
-    if (tabId == 0) {
-        QMessageBox b(this);
-        b.setWindowTitle(tr("Cannot close"));
-        b.setText(tr("This is the primary console.\nDo you want to quit?"));
-        b.setIcon(b.Question);
-        b.setStandardButtons(b.Yes | b.No);
-        if (b.exec() == b.Yes)
-            qApp->quit();
-        return;
-    }
-
     auto c = wid2con(consoles()->widget(tabId));
-    if (c->can_close())
+    if (c->can_close()) {
+        if (tabId == 0) {
+            QMessageBox b(this);
+            b.setWindowTitle(tr("Cannot close"));
+            b.setText(tr("[%1] is the primary console.\nDo you want to quit?").arg(c->titleLabel()));
+            b.setIcon(b.Question);
+            b.setStandardButtons(b.Yes | b.No);
+            if (b.exec() == b.Yes)
+                qApp->quit();
+            return;
+        }
         consoles()->removeTab(tabId);
+    }
 }
 
 /** close console by object
  */
 void pqMainWindow::remConsole(ConsoleEdit *c) {
-    auto t = consoles();
-    if (t) {
-        int i = t->indexOf(c);
-        if (i > 0)
-            t->removeTab(i);
-    }
+    if (auto t = consoles())
+        if (t->indexOf(c) > 0)
+            t->removeTab(t->indexOf(c));
 }

@@ -22,23 +22,29 @@
 
 #include "Preferences.h"
 
+/** get configured values, with reasonable defaults
+ */
 Preferences::Preferences(QObject *parent) :
     QSettings("SWI-Prolog", "pqConsole", parent)
 {
-    //user_output_conntype = static_cast<Qt::ConnectionType>(value("user_output_conntype", Qt::BlockingQueuedConnection).toInt());
-
     console_font = value("console_font", QFont("courier", 12)).value<QFont>();
     wrapMode = static_cast<ConsoleEditBase::LineWrapMode>(value("wrapMode", ConsoleEditBase::WidgetWidth).toInt());
 
     console_output_fmt = value("console_output_fmt", "black").value<QColor>();
     console_input_fmt = value("console_input_fmt", "beige").value<QColor>();
 }
+
+/** save configured values
+ */
 Preferences::~Preferences() {
-    //setValue("user_output_conntype", user_output_conntype);
 
-    setValue("console_font", console_font);
-    setValue("wrapMode", wrapMode);
+    #define SV(s) setValue(#s, s)
 
-    setValue("console_output_fmt", console_output_fmt);
-    setValue("console_input_fmt", console_input_fmt);
+    SV(console_font);
+    SV(wrapMode);
+
+    SV(console_output_fmt);
+    SV(console_input_fmt);
+
+    #undef SV
 }

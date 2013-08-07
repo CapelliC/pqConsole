@@ -111,6 +111,9 @@ public:
     /** just check the status member */
     bool is_running() const { return status == running; }
 
+    /** the user identifying label is attached somewhere to parents chain */
+    QString titleLabel();
+
 protected:
 
     /** host actual interface object, running in background */
