@@ -253,6 +253,8 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
                     auto repc = [&](QString t) {
                         c.removeSelectedText();
                         c.insertText(t, input_text_fmt);
+                        c.movePosition(c.End);
+                        ensureCursorVisible();
                     };
 
                     if (down) {
