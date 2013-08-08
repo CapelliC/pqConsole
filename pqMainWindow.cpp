@@ -48,8 +48,6 @@ pqMainWindow::pqMainWindow(int argc, char *argv[]) {
 /** handle application closing, WRT XPCE termination
  */
 void pqMainWindow::closeEvent(QCloseEvent *event) {
-    ConsoleEdit *main;
-
     auto t = consoles();
     if (t) {
         for (int c = 0; c < t->count(); ++c)
@@ -57,18 +55,24 @@ void pqMainWindow::closeEvent(QCloseEvent *event) {
                 event->ignore();
                 return;
             }
-        main = wid2con(t->widget(0));
     }
-    else if (!(main = wid2con(centralWidget()))->can_close()) {
+    else if (!wid2con(centralWidget())->can_close()) {
         event->ignore();
         return;
     }
 
-    SwiPrologEngine::in_thread e_;
-    if (PlCall("current_prolog_flag(xpce, true)")) {
+    //SwiPrologEngine::in_thread e_;
+    //if (PlCall("current_prolog_flag(xpce, true)")) {
+        /*
         if (!PlCall("send(@pce, die, 0)"))
             event->ignore();
-    }
+        */
+        //if (PL_cleanup(0) != 0)
+            //event->ignore();
+    //}
+
+    if (!SwiPrologEngine::quit_request())
+        event->ignore();
 }
 
 /** pass initialization script to actual interface

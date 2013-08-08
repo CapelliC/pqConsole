@@ -58,9 +58,6 @@ public:
     /** run script on background thread */
     void script_run(QString name, QString text);
 
-    /** issue user cancel request
-    void cancel_running(); */
-
     /** start/stop a Prolog engine in thread - use for syncronized GUI */
     struct PQCONSOLESHARED_EXPORT in_thread {
         in_thread();
@@ -73,8 +70,8 @@ public:
         PlFrame *frame;
     };
 
-    /** thread that started PL_toplevel */
-    static SwiPrologEngine* main() { return spe; }
+    /** handle application quit request in thread that started PL_toplevel */
+    static bool quit_request();
 
     /** utility: make public */
     static void msleep(unsigned long n) { QThread::msleep(n); }

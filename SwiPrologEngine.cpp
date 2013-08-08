@@ -35,6 +35,7 @@
 /** singleton handling - process main engine
  */
 SwiPrologEngine *SwiPrologEngine::spe;
+static PlEngine *ple;
 
 /** enforce singleton handling
  */
@@ -42,27 +43,25 @@ SwiPrologEngine::SwiPrologEngine(ConsoleEdit *target, QObject *parent)
     : QThread(parent),
       FlushOutputEvents(target),
       argc(-1)
-      //thid(-1)
 {
     Q_ASSERT(spe == 0);
     spe = this;
 }
 
+/** enforce proper termination sequence
+ */
 SwiPrologEngine::~SwiPrologEngine() {
-    if (spe == this) {
-        {   QMutexLocker lk(&sync);
-            spe = 0;
-        }
-        //ready.wakeAll();
-        bool ok = wait(1000);
-        Q_ASSERT(ok);
-    }
+    Q_ASSERT(spe == 0);
 }
 
+/** check stream property
+ */
 bool SwiPrologEngine::is_tty() {
     return PL_ttymode(Suser_input) == PL_RAWTTY;
 }
 
+/** background thread setup
+ */
 void SwiPrologEngine::start(int argc, char **argv) {
     this->argv = new char*[this->argc = argc];
     for (int a = 0; a < argc; ++a)
@@ -70,11 +69,11 @@ void SwiPrologEngine::start(int argc, char **argv) {
     QThread::start();
 }
 
+/** from console fron end: user - or a equivalent actor - has input s
+ */
 void SwiPrologEngine::user_input(QString s) {
     QMutexLocker lk(&sync);
     buffer = s.toUtf8();
-    //buffer = s;//.toStdWString();
-    //ready.wakeOne();
 }
 
 /** fill the buffer
@@ -86,72 +85,10 @@ ssize_t SwiPrologEngine::_read_(void *handle, char *buf, size_t bufsize) {
 }
 
 /** background read & query loop
-ssize_t SwiPrologEngine::_read_(char *buf, size_t bufsize) {
-
-_wait_:
-
-    emit user_prompt(PL_thread_self(), is_tty());
-    //thid = -1;
-
-    sync.lock();
-    ready.wait(&sync);
-    sync.unlock();
-
-    if (!spe) // terminated
-        return 0;
-
-    // tag status running - and interruptable
-    //thid = PL_thread_self();
-
-    // async query interface served from same thread
-    if (!queries.empty()) {
-        for ( ; !queries.empty(); ) {
-            query p = queries.takeFirst();
-            Q_ASSERT(!p.is_script);
-            {
-                QString n = p.name, t = p.text;
-                try {
-                    if (n.isEmpty()) {
-                        PlQuery q("call", PlTermv(PlCompound(t.toUtf8())));
-                        //PlQuery q("call", PlTermv(PlCompound(t.toStdWString().data())));
-                        int occurrences = 0;
-                        while (q.next_solution())
-                            emit query_result(t, ++occurrences);
-                        emit query_complete(t, occurrences);
-                    }
-                    else {
-                        PlQuery q(A(n), "call", PlTermv(PlCompound(t.toUtf8())));
-                        //PlQuery q(A(n), "call", PlTermv(PlCompound(t.toStdWString().data())));
-                        int occurrences = 0;
-                        while (q.next_solution())
-                            emit query_result(t, ++occurrences);
-                        emit query_complete(t, occurrences);
-                    }
-                }
-                catch(PlException ex) {
-                    qDebug() << t << CCP(ex);
-                    emit query_exception(n, CCP(ex));
-                }
-            }
-        }
-        goto _wait_;
-    }
-
-    // resume IO
-    uint n = buffer.length();
-    Q_ASSERT(bufsize >= n);
-    uint l = bufsize < n ? bufsize : n;
-    qstrncpy(buf, buffer, l + 1);
-    //wcsncpy();
-
-    return l;
-}
-*/
-
+ */
 ssize_t SwiPrologEngine::_read_(char *buf, size_t bufsize) {
 
     emit user_prompt(PL_thread_self(), is_tty());
-    //thid = -1;
 
     for ( ; ; ) {
 
@@ -163,6 +100,35 @@ ssize_t SwiPrologEngine::_read_(char *buf, size_t bufsize) {
             if (!queries.empty())
                 serve_query(queries.takeFirst());
 
+            //qDebug() << "loop" << spe->target->status;
+            if (spe->target->status == ConsoleEdit::closing) {
+                qDebug() << "spe->target->status == ConsoleEdit::closing" << CVP(CT);
+#if 0
+                if (PlCall("current_prolog_flag(xpce, true)")) {
+                    qDebug() << "current_prolog_flag(xpce, true)";
+                    /*
+                    if (PlCall("send(@pce, die, 0)")) {
+                        qDebug() << "send(@pce, die, 0)";
+                        for (int n = 0; n < 10; ++n) {
+                            if (PlCall("current_prolog_flag(xpce, true)")) {
+                                //msleep(1000);
+                                qDebug() << "do_events(1000)";
+                                do_events(1000);
+                            }
+                        }
+                        return 0;
+                    }
+                    else
+                        qDebug() << "send failed";
+                    */
+                    buffer = "send(@pce, die, 0).\n";
+                }
+                else
+                    return 0;
+#endif
+                return 0;
+            }
+
             uint n = buffer.length();
             if (n > 0) {
                 Q_ASSERT(bufsize >= n);
@@ -173,7 +139,7 @@ ssize_t SwiPrologEngine::_read_(char *buf, size_t bufsize) {
             }
         }
 
-        msleep(10);
+        msleep(100);
     }
 }
 
@@ -212,7 +178,7 @@ ssize_t SwiPrologEngine::_write_(void *handle, char *buf, size_t bufsize) {
     Q_UNUSED(handle);
     if (spe) {   // not terminated?
         emit spe->user_output(QString::fromUtf8(buf, bufsize));
-        if (spe->target->status != ConsoleEdit::idle)
+        if (spe->target->status == ConsoleEdit::running)
             spe->flush();
     }
     return bufsize;
@@ -222,43 +188,39 @@ void SwiPrologEngine::run() {
     Sinput->functions->read = _read_;
     Soutput->functions->write = _write_;
 
-    //qDebug() << CVP(Soutput->functions->write);
-
     PL_set_prolog_flag("console_menu", PL_BOOL, TRUE);
     PL_set_prolog_flag("console_menu_version", PL_ATOM, "qt");
 
     target->add_thread(1);
-    PlEngine e(argc, argv);
+    ple = new PlEngine(argc, argv);
 
     for (int a = 0; a < argc; ++a)
         delete [] argv[a];
     delete [] argv;
     argc = 0;
 
-    /*
-    int tid = PL_thread_self();
-    target->run_function([&]() {
-        target->add_thread(tid);
-    });
-    */
-    //target->add_thread(PL_thread_self());
     PL_toplevel();
+
+    qDebug() << "spe" << CVP(spe);
+    if (spe && spe->target->status == ConsoleEdit::closing) {
+        delete ple;
+        ple = 0;
+    }
+    spe = 0;
 }
 
-/** push an unnamed query, then issue delayed execution
+/** push an unnamed query, thus unlocking the execution polling loop
  */
 void SwiPrologEngine::query_run(QString text) {
     QMutexLocker lk(&sync);
     queries.append(query {false, "", text});
-    //ready.wakeOne();
 }
 
-/** push a named query, then issue delayed execution
+/** push a named query, thus unlocking the execution polling loop
  */
 void SwiPrologEngine::query_run(QString module, QString text) {
     QMutexLocker lk(&sync);
     queries.append(query {false, module, text});
-    //ready.wakeOne();
 }
 
 /** allows to run a delayed script from resource at startup
@@ -275,15 +237,6 @@ void SwiPrologEngine::awake() {
     if (!I.named_load(p.name, p.text))
         qDebug() << "awake failed";
 }
-
-/** issue user cancel request
-void SwiPrologEngine::cancel_running() {
-    if (thid > 0) {
-        qDebug() << "cancel_running";
-        PL_thread_raise(thid, SIGINT);
-    }
-}
- */
 
 /** attaching *main* thread engine to another thread (ok GUI thread)
  */
@@ -328,4 +281,23 @@ bool SwiPrologEngine::in_thread::named_load(QString n, QString t, bool silent) {
         qDebug() << CCP(ex);
     }
     return false;
+}
+
+/** handle application quit request in thread that started PL_toplevel
+ *  logic moved here from pqMainWindow
+ */
+bool SwiPrologEngine::quit_request() {
+    in_thread e;
+    if (PlCall("current_prolog_flag(xpce, true)"))
+        PlCall("send(@pce, die, 0)");
+    else if (spe) {
+        spe->target->status = ConsoleEdit::closing;
+        for (int n = 0; n < 10; ++n) {
+            if (!spe)
+                break;
+            msleep(100);
+        }
+    }
+
+    return true;
 }
