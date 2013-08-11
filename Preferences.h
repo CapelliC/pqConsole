@@ -45,6 +45,10 @@ public:
 
     ConsoleEditBase::LineWrapMode wrapMode;
 
+    /** helper to save/restore windows placements */
+    void loadGeometry(QString key, QWidget *w);
+    void saveGeometry(QString key, QWidget *w);
+
 #if 0
     // TBD this is performance critical
     Qt::ConnectionType user_output_conntype;

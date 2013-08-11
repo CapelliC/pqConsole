@@ -48,3 +48,22 @@ Preferences::~Preferences() {
 
     #undef SV
 }
+
+void Preferences::loadGeometry(QString key, QWidget *w) {
+    beginGroup(key);
+    QPoint pos = value("pos", QPoint(200, 200)).toPoint();
+    QSize size = value("size", QSize(800, 600)).toSize();
+    int state = value("state", static_cast<int>(Qt::WindowNoState)).toInt();
+    w->move(pos);
+    w->resize(size);
+    w->setWindowState(static_cast<Qt::WindowStates>(state));
+    endGroup();
+}
+
+void Preferences::saveGeometry(QString key, QWidget *w) {
+    beginGroup(key);
+    setValue("pos", w->pos());
+    setValue("size", w->size());
+    setValue("state", static_cast<int>(w->windowState()));
+    endGroup();
+}
