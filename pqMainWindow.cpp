@@ -61,16 +61,6 @@ void pqMainWindow::closeEvent(QCloseEvent *event) {
         return;
     }
 
-    //SwiPrologEngine::in_thread e_;
-    //if (PlCall("current_prolog_flag(xpce, true)")) {
-        /*
-        if (!PlCall("send(@pce, die, 0)"))
-            event->ignore();
-        */
-        //if (PL_cleanup(0) != 0)
-            //event->ignore();
-    //}
-
     if (!SwiPrologEngine::quit_request())
         event->ignore();
 }

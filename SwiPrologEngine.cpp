@@ -35,7 +35,6 @@
 /** singleton handling - process main engine
  */
 SwiPrologEngine *SwiPrologEngine::spe;
-static PlEngine *ple;
 
 /** enforce singleton handling
  */
@@ -100,35 +99,6 @@ ssize_t SwiPrologEngine::_read_(char *buf, size_t bufsize) {
             if (!queries.empty())
                 serve_query(queries.takeFirst());
 
-            //qDebug() << "loop" << spe->target->status;
-            if (spe->target->status == ConsoleEdit::closing) {
-                qDebug() << "spe->target->status == ConsoleEdit::closing" << CVP(CT);
-#if 0
-                if (PlCall("current_prolog_flag(xpce, true)")) {
-                    qDebug() << "current_prolog_flag(xpce, true)";
-                    /*
-                    if (PlCall("send(@pce, die, 0)")) {
-                        qDebug() << "send(@pce, die, 0)";
-                        for (int n = 0; n < 10; ++n) {
-                            if (PlCall("current_prolog_flag(xpce, true)")) {
-                                //msleep(1000);
-                                qDebug() << "do_events(1000)";
-                                do_events(1000);
-                            }
-                        }
-                        return 0;
-                    }
-                    else
-                        qDebug() << "send failed";
-                    */
-                    buffer = "send(@pce, die, 0).\n";
-                }
-                else
-                    return 0;
-#endif
-                return 0;
-            }
-
             uint n = buffer.length();
             if (n > 0) {
                 Q_ASSERT(bufsize >= n);
@@ -192,7 +162,7 @@ void SwiPrologEngine::run() {
     PL_set_prolog_flag("console_menu_version", PL_ATOM, "qt");
 
     target->add_thread(1);
-    ple = new PlEngine(argc, argv);
+    PL_initialise(argc, argv);
 
     for (int a = 0; a < argc; ++a)
         delete [] argv[a];
@@ -203,8 +173,6 @@ void SwiPrologEngine::run() {
 
     qDebug() << "spe" << CVP(spe);
     if (spe && spe->target->status == ConsoleEdit::closing) {
-        delete ple;
-        ple = 0;
     }
     spe = 0;
 }
@@ -287,6 +255,9 @@ bool SwiPrologEngine::in_thread::named_load(QString n, QString t, bool silent) {
  *  logic moved here from pqMainWindow
  */
 bool SwiPrologEngine::quit_request() {
+    PL_halt(0); // doesn't return or false
+    return false;
+    /*
     in_thread e;
     if (PlCall("current_prolog_flag(xpce, true)"))
         PlCall("send(@pce, die, 0)");
@@ -298,6 +269,6 @@ bool SwiPrologEngine::quit_request() {
             msleep(100);
         }
     }
-
     return true;
+    */
 }
