@@ -648,16 +648,14 @@ PREDICATE0(select_font) {
  *  just issue termination to Qt application object
  */
 PREDICATE0(quit_console) {
-    /*
+
     ConsoleEdit* c = console_by_thread();
     if (c) {
-        qDebug() << "? quit_console" << QTime::currentTime();
-        c->exec_func([](){ qApp->quit(); });
-        qDebug() << "! qApp->quit" << QTime::currentTime();
+        // run on foreground
+        c->exec_func([]() { QApplication::postEvent(qApp, new QCloseEvent); });
         return TRUE;
     }
-    */
-    PL_halt(0);
+
     return FALSE;
 }
 
