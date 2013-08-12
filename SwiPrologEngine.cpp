@@ -68,7 +68,7 @@ void SwiPrologEngine::start(int argc, char **argv) {
     QThread::start();
 }
 
-/** from console fron end: user - or a equivalent actor - has input s
+/** from console front end: user - or a equivalent actor - has input s
  */
 void SwiPrologEngine::user_input(QString s) {
     QMutexLocker lk(&sync);

@@ -623,7 +623,7 @@ QString ConsoleEdit::titleLabel() {
 /** attempt to gracefully stop XPCE thread
  */
 bool ConsoleEdit::can_close() {
-    if (is_running()) {
+    if (eng && is_running()) {
         QMessageBox b(this);
         b.setText(tr("[%1] is running a query.\nQuit anyway ?").arg(titleLabel())); //thread_id()
         b.setStandardButtons(b.Yes|b.No);
@@ -802,8 +802,11 @@ void ConsoleEdit::add_history_line(QString line)
 /** when engine gracefully complete-...
  */
 void ConsoleEdit::eng_completed() {
-    if (eng)
-        qApp->quit();
+    if (eng) {
+        eng = 0;
+        // qApp->quit();
+        QApplication::postEvent(qApp, new QCloseEvent);
+    }
     else if (io) {
         if (auto mw = find_parent<pqMainWindow>(this))
             mw->remConsole(this);
