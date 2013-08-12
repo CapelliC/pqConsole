@@ -109,6 +109,9 @@ ssize_t SwiPrologEngine::_read_(char *buf, size_t bufsize) {
             }
         }
 
+	if ( PL_handle_signals() < 0 )
+	    return -1;
+
         msleep(100);
     }
 }

@@ -97,6 +97,10 @@ ssize_t Swipl_IO::_read_(char *buf, size_t bufsize) {
                 break;
             }
         }
+
+	if ( PL_handle_signals() < 0 )
+	    return -1;
+
         SwiPrologEngine::msleep(10);
     }
 
@@ -127,6 +131,9 @@ ssize_t Swipl_IO::_read_(char *buf, size_t bufsize) {
                 return l;
             }
         }
+
+	if ( PL_handle_signals() < 0 )
+	    return -1;
 
         SwiPrologEngine::msleep(10);
     }
