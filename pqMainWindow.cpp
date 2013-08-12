@@ -22,6 +22,7 @@
 
 #include "pqMainWindow.h"
 #include "ConsoleEdit.h"
+#include "Preferences.h"
 #include "PREDICATE.h"
 #include "do_events.h"
 
@@ -42,7 +43,9 @@ pqMainWindow::pqMainWindow(QWidget *parent) :
  */
 pqMainWindow::pqMainWindow(int argc, char *argv[]) {
     setCentralWidget(new ConsoleEdit(argc, argv));
-    resize(800, 600);
+
+    Preferences p;
+    p.loadGeometry(this);
 }
 
 /** handle application closing, WRT XPCE termination
@@ -59,6 +62,10 @@ void pqMainWindow::closeEvent(QCloseEvent *event) {
     else if (!wid2con(centralWidget())->can_close()) {
         event->ignore();
         return;
+    }
+
+    {   Preferences p;
+        p.saveGeometry(this);
     }
 
     if (!SwiPrologEngine::quit_request())

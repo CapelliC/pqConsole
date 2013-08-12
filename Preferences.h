@@ -45,7 +45,9 @@ public:
 
     ConsoleEditBase::LineWrapMode wrapMode;
 
-    /** helper to save/restore windows placements */
+    /** helpers to save/restore windows placements */
+    void loadGeometry(QWidget *w);
+    void saveGeometry(QWidget *w);
     void loadGeometry(QString key, QWidget *w);
     void saveGeometry(QString key, QWidget *w);
 

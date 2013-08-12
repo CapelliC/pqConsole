@@ -67,3 +67,9 @@ void Preferences::saveGeometry(QString key, QWidget *w) {
     setValue("state", static_cast<int>(w->windowState()));
     endGroup();
 }
+void Preferences::loadGeometry(QWidget *w) {
+    loadGeometry(w->metaObject()->className(), w);
+}
+void Preferences::saveGeometry(QWidget *w) {
+    saveGeometry(w->metaObject()->className(), w);
+}
