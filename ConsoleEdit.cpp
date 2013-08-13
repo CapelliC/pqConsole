@@ -35,6 +35,7 @@
 #include <QAction>
 #include <QToolTip>
 #include <QKeyEvent>
+#include <QMimeData>
 #include <QMessageBox>
 #include <QMainWindow>
 #include <QApplication>
