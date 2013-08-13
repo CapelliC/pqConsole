@@ -109,8 +109,8 @@ ssize_t SwiPrologEngine::_read_(char *buf, size_t bufsize) {
             }
         }
 
-	if ( PL_handle_signals() < 0 )
-	    return -1;
+        if (PL_handle_signals() < 0)
+            return -1;
 
         msleep(100);
     }
@@ -167,17 +167,23 @@ void SwiPrologEngine::run() {
     target->add_thread(1);
     PL_initialise(argc, argv);
 
-    for (int a = 0; a < argc; ++a)
-        delete [] argv[a];
-    delete [] argv;
+    // use as initialized flag
     argc = 0;
 
     PL_toplevel();
+    // keep arguments valid while running
+    for (int a = 0; a < argc; ++a)
+        delete [] argv[a];
+    delete [] argv;
 
-    qDebug() << "spe" << CVP(spe);
-    if (spe && spe->target->status == ConsoleEdit::closing) {
-    }
     spe = 0;
+    /*
+    for( ; ; ) {
+        int status = PL_toplevel() ? 0 : 1;
+        qDebug() << "PL_halt" << status;
+        PL_halt(status);
+    }
+    */
 }
 
 /** push an unnamed query, thus unlocking the execution polling loop
@@ -258,8 +264,22 @@ bool SwiPrologEngine::in_thread::named_load(QString n, QString t, bool silent) {
  *  logic moved here from pqMainWindow
  */
 bool SwiPrologEngine::quit_request() {
-    PL_halt(0); // doesn't return or false
+    if (spe)
+        spe->query_run("halt");
+    else
+        PL_halt(0);
     return false;
+    /*
+    {   in_thread _e;
+        if (PlCall("current_prolog_flag(xpce,true)")) {
+            PlCall("send(@pce,die,0)"); // doesn't return or false
+            return false;
+        }
+    }
+    if (spe)
+        spe->query_run("halt");
+    return false;
+    */
     /*
     in_thread e;
     if (PlCall("current_prolog_flag(xpce, true)"))

@@ -284,7 +284,7 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
 
     case Key_D:
         if ((accept = cp >= fixedPosition) && ctrl) {
-            cmd = "end_of_file.\n";
+            cmd = eng ? "halt.\n" : "end_of_file.\n";
             goto _cmd_;
         }
         break;
@@ -795,7 +795,8 @@ void ConsoleEdit::customEvent(QEvent *event) {
  */
 void ConsoleEdit::add_history_line(QString line)
 {
-    history.append(line);
+    if (history.isEmpty() || history.back() != line)
+        history.append(line);
     history_next = history.count();
     history_spare.clear();
 }
