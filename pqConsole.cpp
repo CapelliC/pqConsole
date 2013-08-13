@@ -581,14 +581,17 @@ PREDICATE(getOpenFileName, 4) {
         if (PL_A2.type() == PL_ATOM)
             StartPath = t2w(PL_A2);
 
-        QMutex s;
-        QWaitCondition w;
+        /*QMutex s;
+        QWaitCondition w;*/
+        ConsoleEdit::exec_sync s;
 
         c->exec_func([&]() {
             Choice = QFileDialog::getOpenFileName(c, Caption, StartPath, Pattern);
-            w.wakeOne();
+            //w.wakeOne();
+            s.go();
         });
-        w.wait(&s);
+        //w.wait(&s);
+        s.stop();
 
         if (!Choice.isEmpty()) {
             PL_A4 = A(Choice);
