@@ -284,7 +284,7 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
 
     case Key_D:
         if ((accept = cp >= fixedPosition) && ctrl) {
-            cmd = eng ? "halt.\n" : "end_of_file.\n";
+            cmd = "end_of_file.\n";
             goto _cmd_;
         }
         break;

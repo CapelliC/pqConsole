@@ -170,6 +170,7 @@ void SwiPrologEngine::run() {
     // use as initialized flag
     argc = 0;
 
+    /*
     PL_toplevel();
     // keep arguments valid while running
     for (int a = 0; a < argc; ++a)
@@ -177,13 +178,13 @@ void SwiPrologEngine::run() {
     delete [] argv;
 
     spe = 0;
-    /*
-    for( ; ; ) {
+    */
+
+    for ( ; ; ) {
         int status = PL_toplevel() ? 0 : 1;
         qDebug() << "PL_halt" << status;
         PL_halt(status);
     }
-    */
 }
 
 /** push an unnamed query, thus unlocking the execution polling loop
