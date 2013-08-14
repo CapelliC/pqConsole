@@ -157,9 +157,45 @@ ssize_t SwiPrologEngine::_write_(void *handle, char *buf, size_t bufsize) {
     return bufsize;
 }
 
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+The role of this function is to stop  changing the encoding of the plwin
+output. We must return -1 for  SIO_SETENCODING   for  this. As we do not
+implement any of the other control operations   we  simply return -1 for
+all commands we may be requested to handle.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+int SwiPrologEngine::_control_(void *handle, int cmd, void *closure)
+{ Q_UNUSED(handle);
+  Q_UNUSED(cmd);
+  Q_UNUSED(closure);
+  return -1;
+}
+
+
+static IOFUNCTIONS pq_functions;
+
 void SwiPrologEngine::run() {
-    Sinput->functions->read = _read_;
-    Soutput->functions->write = _write_;
+    pq_functions         = *Sinput->functions;
+    pq_functions.read    = _read_;
+    pq_functions.write	 = _write_;
+ // pq_functions.close   = _close_; /* JW: might be needed.  See pl-ntmain.c */
+    pq_functions.control = _control_;
+
+    Sinput->functions  = &pq_functions;
+    Soutput->functions = &pq_functions;
+    Serror->functions  = &pq_functions;
+
+    Sinput->flags  |= SIO_ISATTY;
+    Soutput->flags |= SIO_ISATTY;
+    Serror->flags  |= SIO_ISATTY;
+
+    Sinput->encoding  = ENC_UTF8; /* is this correct? */
+    Soutput->encoding = ENC_UTF8;
+    Serror->encoding  = ENC_UTF8;
+
+    Sinput->flags  &= ~SIO_FILE;
+    Soutput->flags &= ~SIO_FILE;
+    Serror->flags  &= ~SIO_FILE;
 
     PL_set_prolog_flag("console_menu", PL_BOOL, TRUE);
     PL_set_prolog_flag("console_menu_version", PL_ATOM, "qt");

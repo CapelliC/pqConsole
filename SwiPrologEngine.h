@@ -124,6 +124,7 @@ protected:
 
     static ssize_t _read_(void *handle, char *buf, size_t bufsize);
     static ssize_t _write_(void *handle, char *buf, size_t bufsize);
+    static int     _control_(void *handle, int cmd, void *closure);
     ssize_t _read_(char *buf, size_t bufsize);
     ssize_t _read_f(char *buf, size_t bufsize);
 
