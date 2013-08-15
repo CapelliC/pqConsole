@@ -197,6 +197,7 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
             compinit2(c);
             return;
         }
+        accept = cp >= fixedPosition;
         break;
     case Key_Tab:
         if (ctrl) {
@@ -344,6 +345,14 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
 
         status = running;
     }
+}
+
+/** jump to source location on warning/error messages
+ */
+void ConsoleEdit::mousePressEvent(QMouseEvent *e) {
+    QTextCursor c = cursorForPosition(e->pos());
+    clickable_message_line(c, false);
+    setTextCursor(c);
 }
 
 /** place accepted Completer selection in editor
@@ -641,7 +650,7 @@ void ConsoleEdit::onCursorPositionChanged() {
     set_cursor_tip(c);
     if (fixedPosition > c.position()) {
         viewport()->setCursor(Qt::OpenHandCursor);
-        clickable_message_line(c, false);
+        clickable_message_line(c, true);
     } else
         viewport()->setCursor(Qt::IBeamCursor);
 }

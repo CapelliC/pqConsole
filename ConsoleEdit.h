@@ -125,6 +125,9 @@ protected:
     /** strict control on keyboard events required */
     virtual void keyPressEvent(QKeyEvent *event);
 
+    /** jump to source location on warning/error messages */
+    virtual void mousePressEvent(QMouseEvent *e);
+
     /** support completion */
     virtual void focusInEvent(QFocusEvent *e);
 
