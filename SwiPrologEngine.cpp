@@ -178,7 +178,7 @@ int SwiPrologEngine::halt_engine(int status, void*data)
 
   qDebug() << "halt_engine" << status;
   QCoreApplication::quit();
-  sleep(5);
+  msleep(5000);
 
   return 0;
 }
