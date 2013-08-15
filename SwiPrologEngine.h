@@ -128,6 +128,8 @@ protected:
     ssize_t _read_(char *buf, size_t bufsize);
     ssize_t _read_f(char *buf, size_t bufsize);
 
+    static int halt_engine(int status, void*data);
+
 private slots:
 
     void awake();

@@ -29,6 +29,7 @@
 #include "do_events.h"
 
 #include <QtDebug>
+#include <QApplication>
 #include <signal.h>
 #include <QTimer>
 
@@ -172,6 +173,17 @@ int SwiPrologEngine::_control_(void *handle, int cmd, void *closure)
 }
 
 
+int SwiPrologEngine::halt_engine(int status, void*data)
+{ Q_UNUSED(data);
+
+  qDebug() << "halt_engine" << status;
+  QCoreApplication::quit();
+  sleep(5);
+
+  return 0;
+}
+
+
 static IOFUNCTIONS pq_functions;
 
 void SwiPrologEngine::run() {
@@ -201,6 +213,8 @@ void SwiPrologEngine::run() {
     PL_set_prolog_flag("console_menu_version", PL_ATOM, "qt");
 
     target->add_thread(1);
+    PL_exit_hook(halt_engine, NULL);
+
     PL_initialise(argc, argv);
 
     // use as initialized flag
@@ -301,34 +315,10 @@ bool SwiPrologEngine::in_thread::named_load(QString n, QString t, bool silent) {
  *  logic moved here from pqMainWindow
  */
 bool SwiPrologEngine::quit_request() {
+    qDebug() << "quit_request; spe = " << spe;
     if (spe)
         spe->query_run("halt");
     else
         PL_halt(0);
     return false;
-    /*
-    {   in_thread _e;
-        if (PlCall("current_prolog_flag(xpce,true)")) {
-            PlCall("send(@pce,die,0)"); // doesn't return or false
-            return false;
-        }
-    }
-    if (spe)
-        spe->query_run("halt");
-    return false;
-    */
-    /*
-    in_thread e;
-    if (PlCall("current_prolog_flag(xpce, true)"))
-        PlCall("send(@pce, die, 0)");
-    else if (spe) {
-        spe->target->status = ConsoleEdit::closing;
-        for (int n = 0; n < 10; ++n) {
-            if (!spe)
-                break;
-            msleep(100);
-        }
-    }
-    return true;
-    */
 }
