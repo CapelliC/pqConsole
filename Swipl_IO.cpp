@@ -105,7 +105,7 @@ ssize_t Swipl_IO::_read_(char *buf, size_t bufsize) {
     }
 
     PL_write_prompt(TRUE);
-    emit user_prompt(thid, SwiPrologEngine::is_tty());
+    emit user_prompt(thid, SwiPrologEngine::is_tty(this));
 
     for ( ; ; ) {
 

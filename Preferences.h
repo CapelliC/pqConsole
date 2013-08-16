@@ -39,10 +39,22 @@ public:
     explicit Preferences(QObject *parent = 0);
     ~Preferences();
 
+    /** let user select with a font dialog */
     QFont console_font;
-    QColor console_output_fmt;
-    QColor console_input_fmt;
 
+    /** assign colors by indexes */
+    static QList<QColor> ANSI_sequences;
+
+    /** peek color by index */
+    static QColor ANSI2col(int c, bool highlight = false);
+
+    /** indices into colors' list */
+    int console_out_fore;
+    int console_out_back;
+    int console_inp_fore;
+    int console_inp_back;
+
+    /** enable a scroll bar when not wrapped */
     ConsoleEditBase::LineWrapMode wrapMode;
 
     /** helpers to save/restore windows placements */
@@ -50,16 +62,6 @@ public:
     void saveGeometry(QWidget *w);
     void loadGeometry(QString key, QWidget *w);
     void saveGeometry(QString key, QWidget *w);
-
-#if 0
-    // TBD this is performance critical
-    Qt::ConnectionType user_output_conntype;
-
-    QColor console_background;
-    QSize w_size;
-    QPoint w_position;
-    bool top_level_consoles;
-#endif
 
 signals:
     

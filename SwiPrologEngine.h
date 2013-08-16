@@ -77,7 +77,7 @@ public:
     static void msleep(unsigned long n) { QThread::msleep(n); }
 
     /** query engine about expected interface */
-    static bool is_tty();
+    static bool is_tty(const FlushOutputEvents *target = 0);
 
 signals:
 

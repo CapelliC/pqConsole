@@ -41,29 +41,8 @@
 #include <QApplication>
 #include <QStringListModel>
 
-/** some default color, seems sufficiently visible to me
- */
-static QColor ANSI2col(int c, bool highlight = false) {
-    static QColor
-    v[] = { "black",
-            "red",
-            "green",
-            "brown",
-            "blue",
-            "magenta",
-            "cyan",
-            "white" },
-    h[] = { "gray",
-            "magenta",
-            "chartreuse",
-            "gold",
-            "dodgerblue",
-            "magenta",
-            "lightblue",
-            "whitesmoke" };
-    Q_ASSERT(c >= 0 && c < 8);
-    return (highlight ? h : v)[c];
-}
+/** peek color by index */
+static QColor ANSI2col(int c, bool highlight = false) { return Preferences::ANSI2col(c, highlight); }
 
 /** build command line interface to SWI Prolog engine
  *  this start the *primary* console
@@ -149,8 +128,11 @@ void ConsoleEdit::setup() {
     Preferences p;
 
     // preset presentation attributes
-    output_text_fmt.setForeground(p.console_output_fmt);
-    input_text_fmt.setBackground(p.console_input_fmt);
+    output_text_fmt.setForeground(ANSI2col(p.console_out_fore));
+    output_text_fmt.setBackground(ANSI2col(p.console_out_back));
+
+    input_text_fmt.setForeground(ANSI2col(p.console_inp_fore));
+    input_text_fmt.setBackground(ANSI2col(p.console_inp_back));
 
     setLineWrapMode(p.wrapMode);
     setFont(p.console_font);

@@ -56,7 +56,8 @@ SwiPrologEngine::~SwiPrologEngine() {
 
 /** check stream property
  */
-bool SwiPrologEngine::is_tty() {
+bool SwiPrologEngine::is_tty(const FlushOutputEvents *f) { Q_UNUSED(f)
+    qDebug() << CVP(Suser_input) << "tty" << (PL_ttymode(Suser_input) == PL_RAWTTY);
     return PL_ttymode(Suser_input) == PL_RAWTTY;
 }
 
@@ -88,7 +89,7 @@ ssize_t SwiPrologEngine::_read_(void *handle, char *buf, size_t bufsize) {
  */
 ssize_t SwiPrologEngine::_read_(char *buf, size_t bufsize) {
 
-    emit user_prompt(PL_thread_self(), is_tty());
+    emit user_prompt(PL_thread_self(), is_tty(this));
 
     for ( ; ; ) {
 

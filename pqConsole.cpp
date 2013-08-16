@@ -39,6 +39,7 @@
 #include <QMenuBar>
 #include <QClipboard>
 #include <QFileDialog>
+#include <QColorDialog>
 #include <QFontDialog>
 #include <QMessageBox>
 #include <QMetaObject>
@@ -179,7 +180,18 @@ static void unify(const QMetaProperty& p, QObject *o, PlTerm v) {
         break;
     }
 
-    throw PlException(A("property type mismatch"));
+    throw PlException(A(o->tr("property %1: type mismatch").arg(p.name())));
+}
+
+/** unify a property of QObject, seek by name:
+ *  allows read/write of basic atomic values (note: enums are symbolics)
+ */
+static void unify(CCP name, QObject *o, PlTerm v) {
+    int pid = o->metaObject()->indexOfProperty(name);
+    if (pid >= 0)
+        unify(o->metaObject()->property(pid), o, v);
+    else
+        throw PlException(A(o->tr("property %1: not found").arg(name)));
 }
 
 // SWIPL-WIN.EXE interface implementation
@@ -485,40 +497,56 @@ PREDICATE0(interrupt) {
 
 /** display modal message box
  *  win_message_box(+Text, +Options)
- *  Options is list of name(Value)
+ *
+ *  Options is list of name(Value). Currently only
+ *   image - an image file name (can be resource based)
+ *   title - the message box title
+ *   icon  - identifier among predefined Qt message box icons
  */
 PREDICATE(win_message_box, 2) {
     ConsoleEdit* c = console_by_thread();
     if (c) {
         QString Text = t2w(PL_A1);
-        QString Title = "Swipl";
+        QString Title = "swipl-win", Image;
+
+        PlTerm Icon; //QMessageBox::Icon Icon = QMessageBox::NoIcon;
+
+        // scan options
         PlTerm Option;
-        //typedef QPair<int, QString> O;
-        for (PlTail t(PL_A2); t.next(Option); ) {
+        for (PlTail t(PL_A2); t.next(Option); )
             if (Option.arity() == 1) {
                 QString name = Option.name();
-                if (name == "title") {
+                if (name == "title")
                     Title = t2w(Option[1]);
-                }
-                /*
-                if (name == "title") {
-
-                }
-                */
+                if (name == "icon")
+                    Icon = Option[1];
+                if (name == "image")
+                    Image = t2w(Option[1]);
             }
-        }
+            else
+                throw PlException(A(c->tr("option %1 : invalid arity").arg(t2w(Option))));
 
+        // get icon file, if required
+        QPixmap imfile;
+        if (!Image.isEmpty() && !imfile.load(Image))
+            throw PlException(A(c->tr("icon file %1 not found").arg(Image)));
+
+        int rc;
         ConsoleEdit::exec_sync s;
         c->exec_func([&]() {
             QMessageBox mbox;
             mbox.setText(Text);
             mbox.setWindowTitle(Title);
-            mbox.exec();
+            if (!imfile.isNull())
+                mbox.setIconPixmap(imfile);
+            rc = mbox.exec() == mbox.Ok;
             s.go();
         });
         s.stop();
+        return rc;
     }
-    return TRUE;
+
+    return FALSE;
 }
 
 /** interrupt/0
@@ -538,6 +566,7 @@ PREDICATE0(interrupt) {
 #define PROLOG_MODULE "pqConsole"
 
 /** set/get settings of thread associated console
+ *  some selected property
  *
  *  updateRefreshRate(N) default 100
  *  - allow to alter default refresh rate (simply count outputs before setting cursor at end)
@@ -546,7 +575,7 @@ PREDICATE0(interrupt) {
  *  - remove (from top) text lines when exceeding the limit
  *
  *  lineWrapMode(Mode) Mode --> 'NoWrap' | 'WidgetWidth'
- *  - set/get current line wrapping. When is off, an horizontal scroll bar could display
+ *  - when NoWrap, an horizontal scroll bar could display
  */
 PREDICATE(console_settings, 1) {
     ConsoleEdit* c = console_by_thread();
@@ -554,16 +583,10 @@ PREDICATE(console_settings, 1) {
         PlFrame fr;
         PlTerm opt;
         for (PlTail opts(PL_A1); opts.next(opt); ) {
-            if (opt.arity() == 1) {
-                CCP name = opt.name();
-                int pid = c->metaObject()->indexOfProperty(name);
-                if (pid >= 0)
-                    unify(c->metaObject()->property(pid), c, opt[1]);
-                else
-                    throw PlException(A("property not found"));
-            }
+            if (opt.arity() == 1)
+                unify(opt.name(), c, opt[1]);
             else
-                throw PlException(A("properties have arity 1"));
+                throw PlException(A(c->tr("%1: properties have arity 1").arg(t2w(opt))));
         }
         return TRUE;
     }
@@ -641,6 +664,34 @@ PREDICATE0(select_font) {
         s.stop();
     }
     return ok;
+}
+
+/** select_ANSI_term_colors
+ *  run a dialog to let user configure console colors (associate user defined color to indexes 1-16)
+ */
+PREDICATE0(select_ANSI_term_colors) {
+    ConsoleEdit* c = console_by_thread();
+    bool ok = false;
+    if (c) {
+        ConsoleEdit::exec_sync s;
+        c->exec_func([&]() {
+            Preferences p;
+            QColorDialog d(c);
+            Q_ASSERT(d.customCount() >= p.ANSI_sequences.size());
+            for (int i = 0; i < p.ANSI_sequences.size(); ++i)
+                d.setCustomColor(i, p.ANSI_sequences[i].rgb());
+            if (d.exec()) {
+                for (int i = 0; i < p.ANSI_sequences.size(); ++i)
+                    p.ANSI_sequences[i] = d.customColor(i);
+                c->repaint();
+                ok = true;
+            }
+            s.go();
+        });
+        s.stop();
+        return ok;
+    }
+    return FALSE;
 }
 
 /** quit_console

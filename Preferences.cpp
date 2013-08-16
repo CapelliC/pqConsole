@@ -22,6 +22,15 @@
 
 #include "Preferences.h"
 
+QList<QColor> Preferences::ANSI_sequences;
+
+/** peek color by index
+ */
+QColor Preferences::ANSI2col(int c, bool highlight) {
+    int p = highlight ? c + 8 : c;
+    return ANSI_sequences[p];
+}
+
 /** get configured values, with reasonable defaults
  */
 Preferences::Preferences(QObject *parent) :
@@ -30,8 +39,40 @@ Preferences::Preferences(QObject *parent) :
     console_font = value("console_font", QFont("courier", 12)).value<QFont>();
     wrapMode = static_cast<ConsoleEditBase::LineWrapMode>(value("wrapMode", ConsoleEditBase::WidgetWidth).toInt());
 
-    console_output_fmt = value("console_output_fmt", "black").value<QColor>();
-    console_input_fmt = value("console_input_fmt", "beige").value<QColor>();
+    console_out_fore = value("console_out_fore", 0).toInt();
+    console_out_back = value("console_out_back", 7).toInt();
+    console_inp_fore = value("console_inp_fore", 0).toInt();
+    console_inp_back = value("console_inp_back", 15).toInt();
+
+    // selection from SVG named colors
+    // see http://www.w3.org/TR/SVG/types.html#ColorKeywords
+    static QColor v[] = {
+        "black",
+        "red",
+        "green",
+        "brown",
+        "blue",
+        "magenta",
+        "cyan",
+        "white",
+        "gray",     // 'highlighted' from here
+        "magenta",
+        "chartreuse",
+        "gold",
+        "dodgerblue",
+        "magenta",
+        "lightblue",
+        "beige"
+    };
+
+    ANSI_sequences.clear();
+
+    beginReadArray("ANSI_sequences");
+    for (int i = 0; i < 16; ++i) {
+        setArrayIndex(i);
+        ANSI_sequences.append(value("color", v[i]).value<QColor>());
+    }
+    endArray();
 }
 
 /** save configured values
@@ -43,10 +84,20 @@ Preferences::~Preferences() {
     SV(console_font);
     SV(wrapMode);
 
-    SV(console_output_fmt);
-    SV(console_input_fmt);
+    SV(console_out_fore);
+    SV(console_out_back);
+
+    SV(console_inp_fore);
+    SV(console_inp_back);
 
     #undef SV
+
+    beginWriteArray("ANSI_sequences");
+    for (int i = 0; i < ANSI_sequences.size(); ++i) {
+        setArrayIndex(i);
+        setValue("color", ANSI_sequences[i]);
+    }
+    endArray();
 }
 
 void Preferences::loadGeometry(QString key, QWidget *w) {
