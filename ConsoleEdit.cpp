@@ -343,7 +343,7 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
 void ConsoleEdit::mousePressEvent(QMouseEvent *e) {
     QTextCursor c = cursorForPosition(e->pos());
     clickable_message_line(c, false);
-    setTextCursor(c);
+    ConsoleEditBase::mousePressEvent(e);
 }
 
 /** place accepted Completer selection in editor
