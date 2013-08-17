@@ -270,11 +270,16 @@ void SwiPrologEngine::awake() {
         qDebug() << "awake failed";
 }
 
-/** attaching *main* thread engine to another thread (ok GUI thread)
+/** Create a Prolog thread for the GUI thread, so we can call Prolog
+    goals.  These engines are created to deal with call-backs from the
+    gui and destroyed after the callback has finished. This is used only
+    if the thread associated to the current tab is not running a query.
  */
 SwiPrologEngine::in_thread::in_thread()
     : frame(0)
 {
+    PL_thread_attr_t attr;
+
     while (!spe)
         msleep(100);
     while (!spe->isRunning())
@@ -282,8 +287,12 @@ SwiPrologEngine::in_thread::in_thread()
     while (spe->argc)
         msleep(100);
 
-    int id = PL_thread_attach_engine(0);
-    Q_ASSERT(id >= 0);
+    memset(&attr, 0, sizeof(attr));
+    attr.flags = PL_THREAD_NO_DEBUG;
+    attr.alias = (char*)"__gui";
+
+    int id = PL_thread_attach_engine(&attr);
+    Q_ASSERT(id >= 0);			/* JW: Should throw exception */
     frame = new PlFrame;
 }
 
