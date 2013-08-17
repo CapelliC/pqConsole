@@ -104,8 +104,10 @@ ssize_t Swipl_IO::_read_(char *buf, size_t bufsize) {
         SwiPrologEngine::msleep(10);
     }
 
-    PL_write_prompt(TRUE);
-    emit user_prompt(thid, SwiPrologEngine::is_tty(this));
+    if ( buffer.isEmpty() ) {
+        PL_write_prompt(TRUE);
+	emit user_prompt(thid, SwiPrologEngine::is_tty(this));
+    }
 
     for ( ; ; ) {
 
@@ -126,8 +128,8 @@ ssize_t Swipl_IO::_read_(char *buf, size_t bufsize) {
             Q_ASSERT(bufsize >= n);
             if (n > 0) {
                 uint l = bufsize < n ? bufsize : n;
-                qstrncpy(buf, buffer, l + 1);
-                buffer.clear();
+                memcpy(buf, buffer, l);
+                buffer.remove(0, l);
                 return l;
             }
 

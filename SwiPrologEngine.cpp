@@ -89,7 +89,8 @@ ssize_t SwiPrologEngine::_read_(void *handle, char *buf, size_t bufsize) {
  */
 ssize_t SwiPrologEngine::_read_(char *buf, size_t bufsize) {
 
-    emit user_prompt(PL_thread_self(), is_tty(this));
+    if ( buffer.isEmpty() )
+        emit user_prompt(PL_thread_self(), is_tty(this));
 
     for ( ; ; ) {
 
@@ -103,10 +104,9 @@ ssize_t SwiPrologEngine::_read_(char *buf, size_t bufsize) {
 
             uint n = buffer.length();
             if (n > 0) {
-                Q_ASSERT(bufsize >= n);
                 uint l = bufsize < n ? bufsize : n;
-                qstrncpy(buf, buffer, l + 1);
-                buffer.clear();
+                memcpy(buf, buffer, l);
+		buffer.remove(0, l);
                 return l;
             }
 
