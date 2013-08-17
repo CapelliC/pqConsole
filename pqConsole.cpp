@@ -39,6 +39,7 @@
 #include <QMenuBar>
 #include <QClipboard>
 #include <QFileDialog>
+#include <QGridLayout>
 #include <QColorDialog>
 #include <QFontDialog>
 #include <QMessageBox>
@@ -105,7 +106,9 @@ static ConsoleEdit *console_peek_first() {
 /** unify a property of QObject:
  *  allows read/write of simple atomic values
  */
-static void unify(const QMetaProperty& p, QObject *o, PlTerm v) {
+static QString unify(const QMetaProperty& p, QObject *o, PlTerm v) {
+
+    #define OK return QString()
 
     switch (v.type()) {
 
@@ -113,24 +116,24 @@ static void unify(const QMetaProperty& p, QObject *o, PlTerm v) {
         switch (p.type()) {
         case QVariant::Bool:
             v = p.read(o).toBool() ? A("true") : A("false");
-            return;
+            OK;
         case QVariant::Int:
             if (p.isEnumType()) {
                 Q_ASSERT(!p.isFlagType());  // TBD
                 QMetaEnum e = p.enumerator();
                 if (CCP key = e.valueToKey(p.read(o).toInt())) {
                     v = A(key);
-                    return;
+                    OK;
                 }
             }
             v = long(p.read(o).toInt());
-            return;
+            OK;
         case QVariant::UInt:
             v = long(p.read(o).toUInt());
-            return;
+            OK;
         case QVariant::String:
             v = A(p.read(o).toString());
-            return;
+            OK;
         default:
             break;
         }
@@ -141,7 +144,7 @@ static void unify(const QMetaProperty& p, QObject *o, PlTerm v) {
         case QVariant::Int:
         case QVariant::UInt:
             if (p.write(o, qint32(v)))
-                return;
+                OK;
         default:
             break;
         }
@@ -151,14 +154,14 @@ static void unify(const QMetaProperty& p, QObject *o, PlTerm v) {
         switch (p.type()) {
         case QVariant::String:
             if (p.write(o, t2w(v)))
-                return;
+                OK;
         case QVariant::Int:
             if (p.isEnumType()) {
                 Q_ASSERT(!p.isFlagType());  // TBD
                 int i = p.enumerator().keyToValue(v);
                 if (i != -1) {
                     p.write(o, i);
-                    return;
+                    OK;
                 }
             }
         default:
@@ -170,7 +173,7 @@ static void unify(const QMetaProperty& p, QObject *o, PlTerm v) {
         switch (p.type()) {
         case QVariant::Double:
             if (p.write(o, double(v)))
-                return;
+                OK;
         default:
             break;
         }
@@ -180,18 +183,17 @@ static void unify(const QMetaProperty& p, QObject *o, PlTerm v) {
         break;
     }
 
-    throw PlException(A(o->tr("property %1: type mismatch").arg(p.name())));
+    return o->tr("property %1: type mismatch").arg(p.name());
 }
 
 /** unify a property of QObject, seek by name:
  *  allows read/write of basic atomic values (note: enums are symbolics)
  */
-static void unify(CCP name, QObject *o, PlTerm v) {
+static QString unify(CCP name, QObject *o, PlTerm v) {
     int pid = o->metaObject()->indexOfProperty(name);
     if (pid >= 0)
-        unify(o->metaObject()->property(pid), o, v);
-    else
-        throw PlException(A(o->tr("property %1: not found").arg(name)));
+        return unify(o->metaObject()->property(pid), o, v);
+    return o->tr("property %1: not found").arg(name);
 }
 
 // SWIPL-WIN.EXE interface implementation
@@ -507,15 +509,95 @@ PREDICATE0(interrupt) {
  */
 PREDICATE(win_message_box, 2) {
     ConsoleEdit* c = console_by_thread();
+
     if (c) {
         QString Text = t2w(PL_A1);
-        QString Title = "swipl-win", Image;
+        /*
+        record_t r_options = PL_record(PL_A2);
 
+        int rc = FALSE;
+        ConsoleEdit::exec_sync s;
+        QString err;
+
+        c->exec_func([&]() {
+
+            PlFrame fr_;
+            PlTerm Options;
+            if (!PL_recorded(r_options, Options)) {
+                qDebug() << "!PL_recorded(r_options, options)";
+                return;
+            }
+
+            QMessageBox mbox(c);
+            mbox.setText(Text); // should as well become an option - will provide win_message_box/1
+
+            // scan options
+            double image_scale = 0;
+            int minsize_x = 0, minsize_y = 0;
+            QString image;
+
+            PlTerm Option;
+            for (PlTail t(Options); t.next(Option); )
+                if (Option.arity() == 1) {
+                    QString name = Option.name();
+                    if (name == "image")
+                        image = t2w(Option[1]);
+                    else if (name == "image_scale")
+                        image_scale = double(Option[1]);
+                    else if (name == "minsize_x")
+                        minsize_x = int(Option[1]);
+                    else if (name == "minsize_y")
+                        minsize_y = int(Option[1]);
+                    else if ((err = unify(name.toUtf8(), &mbox, Option)).count() > 0)
+                        return; // reflection at work !
+                }
+                else {
+                    err = c->tr("option %1 : invalid arity").arg(t2w(Option));
+                    return;
+                }
+
+            // get Image file, if required
+            QPixmap imfile;
+            if (!image.isEmpty()) {
+                if (!imfile.load(image)) {
+                    err = c->tr("icon file %1 not found").arg(image);
+                    return;
+                }
+                if (image_scale)
+                    imfile = imfile.scaled(imfile.size() * image_scale,
+                                           Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+            }
+
+            if (!imfile.isNull())
+                mbox.setIconPixmap(imfile);
+
+            if (minsize_x || minsize_y) {
+                auto horizontalSpacer = new QSpacerItem(minsize_x, minsize_y, QSizePolicy::Minimum, QSizePolicy::Expanding);
+                auto layout = qobject_cast<QGridLayout*>(mbox.layout());
+                layout->addItem(horizontalSpacer, layout->rowCount(), 0, 1, layout->columnCount());
+            }
+
+            rc = mbox.exec() == mbox.Ok;
+            s.go();
+        });
+        s.stop();
+
+        PL_erase(r_options);
+
+        if (!err.isEmpty())
+            throw PlException(A(err));
+
+        return rc;
+        */
+
+        QString Title = "swipl-win", Image;
         PlTerm Icon; //QMessageBox::Icon Icon = QMessageBox::NoIcon;
 
         // scan options
         float scale = 0;
         PlTerm Option;
+        int min_width = 0;
+
         for (PlTail t(PL_A2); t.next(Option); )
             if (Option.arity() == 1) {
                 QString name = Option.name();
@@ -527,6 +609,8 @@ PREDICATE(win_message_box, 2) {
                     Image = t2w(Option[1]);
                 if (name == "image_scale")
                     scale = double(Option[1]);
+                if (name == "min_width")
+                    min_width = int(Option[1]);
             }
             else
                 throw PlException(A(c->tr("option %1 : invalid arity").arg(t2w(Option))));
@@ -555,10 +639,12 @@ PREDICATE(win_message_box, 2) {
             mbox.setWindowTitle(Title);
             if (!imfile.isNull())
                 mbox.setIconPixmap(imfile);
-            /*
-            else if (Icon.type() != PL_VARIABLE)
-                unify("icon", &mbox, Icon);
-            */
+
+            if (min_width) {
+                auto horizontalSpacer = new QSpacerItem(min_width, 0, QSizePolicy::Minimum, QSizePolicy::Expanding);
+                auto layout = qobject_cast<QGridLayout*>(mbox.layout());
+                layout->addItem(horizontalSpacer, layout->rowCount(), 0, 1, layout->columnCount());
+            }
 
             rc = mbox.exec() == mbox.Ok;
             s.go();
