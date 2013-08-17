@@ -746,7 +746,7 @@ void ConsoleEdit::onConsoleMenuAction() {
                     }
                     return;
                 }
-                target->query_run(action);
+                target->query_run("notrace("+action+")");
             }
         }
     }
