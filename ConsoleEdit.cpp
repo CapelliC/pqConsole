@@ -658,39 +658,29 @@ void ConsoleEdit::clickable_message_line(QTextCursor c, bool highlight) {
     c.movePosition(c.EndOfLine, c.KeepAnchor);
 
     QString line = c.selectedText();
-    QStringList parts = line.split(':');
+    static QRegExp msg("(ERROR|Warning):[ \t]*(([a-zA-Z]:)?[^:]+):([0-9]+)(:([0-9]+))?.*",
+		       Qt::CaseSensitive, QRegExp::RegExp2);
+    if ( msg.exactMatch(line) ) {
+        QStringList parts = msg.capturedTexts();
+     // qDebug() << "file" << parts[2] << "line" << parts[4] << "char" << parts[6];
 
-    /* using regex would be more elegant, but I found difficult to get it working properly...
-    static QRegExp msg("(ERROR|Warning):([^:]+):*$");
-    if (msg.exactMatch(line)) {
-        parts = msg.capturedTexts();
-    }
-    */
-    if (parts.count() > 3 && (parts[0] == QString("Warning") || parts[0] == QString("ERROR"))) {
-        int p = 1;
-        if (parts[p].length() == 2) { // Windoze paths: C:/ etc
-            parts[p+1] = parts[p] + ':' + parts[p+1];
-            ++p;
-        }
-        if (parts[p][0] == ' ') {
-            QString path = parts[p].mid(1);
-            bool is_numl;
-            int numline = parts[p+1].toInt(&is_numl);
-            if (is_numl) {
-                if (highlight) {
-                    if (cposition != cposition_) {
-                        cposition = cposition_;
-                        fposition = fposition_;
-                        QTextCharFormat f = fposition_;
-                        f.setFontUnderline(true);
-                        c.setCharFormat(f);
-                    }
-                    return;
-                }
-                else
-                    query_run(QString("edit('%1':%2)").arg(path).arg(numline));
-            }
-        }
+	if ( highlight ) {
+	    if (cposition != cposition_) {
+	        cposition = cposition_;
+		fposition = fposition_;
+		QTextCharFormat f = fposition_;
+		f.setFontUnderline(true);
+		c.setCharFormat(f);
+	    }
+	    return;
+	} else {
+	    auto cmd = QString("edit('"+parts[2]+"':"+parts[4]);
+	    if ( !parts[6].isEmpty() )
+	        cmd += ":"+parts[6];
+	    cmd += ")";
+	    qDebug() << cmd;
+	    query_run(cmd);
+	}
     }
 
     if (fposition != QTextCharFormat()) {
