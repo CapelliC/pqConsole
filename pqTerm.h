@@ -24,8 +24,8 @@
 #define PQTERM_H
 
 #include "pqConsole_global.h"
-#include <QObject>
 #include <SWI-cpp.h>
+#include <QVariant>
 
 #define X PQCONSOLESHARED_EXPORT
 
@@ -33,32 +33,11 @@
  *  this class could be required to truly distribute execution
  *  but after sketching it, I've not more used, or completed...
  */
-class X pqTerm : public QObject {
-    Q_OBJECT
-public:
-    explicit pqTerm(QObject *parent = 0);
-    
-signals:
-    
-public slots:
-    
-};
 
-/** mirror the very same hierarchy as PlTerm */
-class X pqFunctor : public QObject {};
-class X pqAtom : public QObject {};
-class X pqTermv : public QObject {};
+QVariant term2variant(PlTerm t);
+PlTerm variant2term(const QVariant &v);
 
-class X pqCompound : public pqTerm {};
-
-class X pqString : public pqTerm {};
-class X pqCodeList : public pqTerm {};
-class X pqCharList : public pqTerm {};
-
-class X pqException : public pqTerm {};
-class X pqTypeError : public pqException {};
-class X pqDomainError : public pqException {};
-class X pqResourceError : public pqException {};
-class X pqTermvDomainError : public pqException {};
+typedef QPair< QString, QVector<QVariant> > pqStruct;
+typedef QVariantList pqList;
 
 #endif // PQTERM_H

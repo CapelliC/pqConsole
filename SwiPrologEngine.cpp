@@ -109,6 +109,9 @@ ssize_t SwiPrologEngine::_read_(char *buf, size_t bufsize) {
                 buffer.clear();
                 return l;
             }
+
+            if (target->status == ConsoleEdit::closing)
+                return 0;
         }
 
         if (PL_handle_signals() < 0)

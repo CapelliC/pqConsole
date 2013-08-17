@@ -21,8 +21,46 @@
 */
 
 #include "pqTerm.h"
+#include "PREDICATE.h"
 
-pqTerm::pqTerm(QObject *parent) :
-    QObject(parent)
-{
+QVariant term2variant(PlTerm t) {
+    switch (t.type()) {
+    case PL_VARIABLE:
+        return QVariant();
+    case PL_INT:
+    case PL_INTEGER:
+        return QVariant(int(t));
+    case PL_FLOAT:
+        return double(t);
+
+    case PL_ATOM:
+    case PL_STRING:
+        return t2w(t);
+
+    default:
+        throw QObject::tr("term2variant: unknown type %1").arg(t.type());
+    }
+}
+
+PlTerm variant2term(const QVariant& v) {
+    switch (v.type()) {
+    case v.Char:
+    case v.String:
+    case v.ByteArray:
+        return PlTerm(v.toString().toStdWString().data());
+    case v.Int:
+        return PlTerm(long(v.toInt()));
+    case v.Double:
+        return PlTerm(v.toDouble());
+    case v.List: {
+        PlTerm t;
+        PlTail l(t);
+        foreach(QVariant e, v.toList())
+            l.append(variant2term(e));
+        l.close();
+        return t;
+    }
+    default:
+        return PlTerm();
+    }
 }

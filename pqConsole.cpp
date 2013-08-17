@@ -502,6 +502,8 @@ PREDICATE0(interrupt) {
  *   image - an image file name (can be resource based)
  *   title - the message box title
  *   icon  - identifier among predefined Qt message box icons
+ *   image - pixmap file (ok resource)
+ *   image_scale - multiplier to scale image
  */
 PREDICATE(win_message_box, 2) {
     ConsoleEdit* c = console_by_thread();
@@ -512,6 +514,7 @@ PREDICATE(win_message_box, 2) {
         PlTerm Icon; //QMessageBox::Icon Icon = QMessageBox::NoIcon;
 
         // scan options
+        float scale = 0;
         PlTerm Option;
         for (PlTail t(PL_A2); t.next(Option); )
             if (Option.arity() == 1) {
@@ -522,27 +525,49 @@ PREDICATE(win_message_box, 2) {
                     Icon = Option[1];
                 if (name == "image")
                     Image = t2w(Option[1]);
+                if (name == "image_scale")
+                    scale = double(Option[1]);
             }
             else
                 throw PlException(A(c->tr("option %1 : invalid arity").arg(t2w(Option))));
 
-        // get icon file, if required
-        QPixmap imfile;
-        if (!Image.isEmpty() && !imfile.load(Image))
-            throw PlException(A(c->tr("icon file %1 not found").arg(Image)));
-
         int rc;
+        QString err;
         ConsoleEdit::exec_sync s;
+
         c->exec_func([&]() {
-            QMessageBox mbox;
+
+            QMessageBox mbox(c);
+
+            // get icon file, if required
+            QPixmap imfile;
+            if (!Image.isEmpty()) {
+                if (!imfile.load(Image)) {
+                    err = c->tr("icon file %1 not found").arg(Image);
+                    return;
+                }
+                if (scale)
+                    imfile = imfile.scaled(imfile.size() * scale,
+                                           Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+            }
+
             mbox.setText(Text);
             mbox.setWindowTitle(Title);
             if (!imfile.isNull())
                 mbox.setIconPixmap(imfile);
+            /*
+            else if (Icon.type() != PL_VARIABLE)
+                unify("icon", &mbox, Icon);
+            */
+
             rc = mbox.exec() == mbox.Ok;
             s.go();
         });
         s.stop();
+
+        if (!err.isEmpty())
+            throw PlException(A(err));
+
         return rc;
     }
 

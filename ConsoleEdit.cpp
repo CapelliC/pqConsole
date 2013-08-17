@@ -168,25 +168,26 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
     }
 
     bool ctrl = event->modifiers() == CTRL;
-    bool accept = true, ret = false, down = true;
     int cp = c.position(), k = event->key();
+    bool accept = true, ret = false, down = true, editable = cp >= fixedPosition;
+
     QString cmd;
 
     switch (k) {
 
     case Key_Space:
-        if (!on_completion && ctrl && cp >= fixedPosition) {
+        if (!on_completion && ctrl && editable) {
             compinit2(c);
             return;
         }
-        accept = cp >= fixedPosition;
+        accept = editable;
         break;
     case Key_Tab:
         if (ctrl) {
             event->ignore(); // otherwise tab control get lost !
             return;
         }
-        if (!on_completion && !ctrl && cp >= fixedPosition) {
+        if (!on_completion && !ctrl && editable) {
             compinit(c);
             return;
         }
@@ -211,7 +212,7 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         break;
 
     case Key_Return:
-        ret = cp >= fixedPosition;
+        ret = editable;
         if (ret) {
             c.movePosition(c.End);
             setTextCursor(c);
@@ -219,7 +220,7 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         break;
 
     case Key_Backspace:
-        accept = cp > fixedPosition;
+        accept = editable;
         break;
 
     case Key_Up:
@@ -228,7 +229,7 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
     case Key_Down:
         if (!ctrl) {
             // naive history handler
-            if (cp >= fixedPosition) {
+            if (editable) {
                 if (!history.empty()) {
 
                     c.setPosition(fixedPosition);
@@ -266,9 +267,14 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         return;
 
     case Key_D:
-        if ((accept = cp >= fixedPosition) && ctrl) {
-            cmd = "end_of_file.\n";
-            goto _cmd_;
+        #ifdef Q_OS_DARWIN
+        if ((accept = editable) && event->modifiers() == META)
+        #else
+        if ((accept = editable) && ctrl)
+        #endif
+        {   qDebug() << "^D" << thids;
+            status = closing;
+            return;
         }
         break;
 
@@ -282,7 +288,7 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         // fall throu
 
     default:
-        accept = cp >= fixedPosition || event->matches(QKeySequence::Copy);
+        accept = editable || event->matches(QKeySequence::Copy);
     }
 
     if (accept) {
