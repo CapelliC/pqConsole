@@ -110,8 +110,10 @@ ssize_t SwiPrologEngine::_read_(char *buf, size_t bufsize) {
                 return l;
             }
 
-            if (target->status == ConsoleEdit::closing)
+            if (target->status == ConsoleEdit::eof) {
+	        target->status = ConsoleEdit::running;
                 return 0;
+	    }
         }
 
         if (PL_handle_signals() < 0)

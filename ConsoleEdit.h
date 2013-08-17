@@ -191,7 +191,7 @@ protected:
     void set_cursor_tip(QTextCursor c);
 
     /** attempt to track *where* to place outpout */
-    enum e_status { idle, attaching, wait_input, running, closing };
+    enum e_status { idle, attaching, wait_input, running, closing, eof };
     e_status status;
     int promptPosition;
     bool is_tty;

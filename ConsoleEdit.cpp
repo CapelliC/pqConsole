@@ -273,8 +273,10 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         if ((accept = editable) && ctrl)
         #endif
         {   qDebug() << "^D" << thids;
-            status = closing;
-            return;
+	    c.movePosition(c.End);
+            setTextCursor(c);
+	    ret = true;
+            status = eof;
         }
         break;
 
@@ -331,7 +333,8 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         else
             emit user_input(cmd);
 
-        status = running;
+	if ( status != eof || !cmd.isEmpty() )
+	    status = running;
     }
 }
 
