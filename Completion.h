@@ -23,6 +23,8 @@
 #ifndef COMPLETION_H
 #define COMPLETION_H
 
+#include "pqConsole_global.h"
+
 #include <QMap>
 #include <QCompleter>
 #include <QTextCursor>
@@ -30,7 +32,7 @@
 
 /** service class, holds a sorted list of predicates for word completion
  */
-struct Completion
+struct PQCONSOLESHARED_EXPORT Completion
 {
     /** context sensitive completion */
     static QString initialize(int promptPosition, QTextCursor cursor, QStringList &strings);
