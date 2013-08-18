@@ -217,6 +217,7 @@ void SwiPrologEngine::run() {
 
     PL_set_prolog_flag("console_menu", PL_BOOL, TRUE);
     PL_set_prolog_flag("console_menu_version", PL_ATOM, "qt");
+    PL_set_prolog_flag("xpce_threaded", PL_BOOL, TRUE);
 
     target->add_thread(1);
     PL_exit_hook(halt_engine, NULL);
