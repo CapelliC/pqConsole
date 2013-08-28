@@ -14,5 +14,11 @@ Features
    and enable creating a console for each thread
  - XPCE ready, allows reuse of current IDE components
 
+History
+
+ - pqConsole sources have been embedded in swipl-win, hosted on SWI-Prolog git official repository.
+   Since I'm still interested in keeping pqConsole independent from actual applicative front end,
+   from time to time there will be a manual sync, to keep this one aligned.
+
 author:  Carlo Capelli - Brescia 2013
 licence: LGPL v2.1
