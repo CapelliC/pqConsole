@@ -29,6 +29,7 @@
 #include "pqMainWindow.h"
 #include <signal.h>
 
+#include <QUrl>
 #include <QTime>
 #include <QRegExp>
 #include <QtDebug>
@@ -44,12 +45,18 @@
 /** peek color by index */
 static QColor ANSI2col(int c, bool highlight = false) { return Preferences::ANSI2col(c, highlight); }
 
+/** can be disabled from ~/.plrc */
+bool ConsoleEdit::color_term = true;
+
 /** build command line interface to SWI Prolog engine
  *  this start the *primary* console
  */
 ConsoleEdit::ConsoleEdit(int argc, char **argv, QWidget *parent)
     : ConsoleEditBase(parent), io(0)
 {
+    // mandatory for QTextBrowser instances
+    setReadOnly(false);
+
     qApp->setWindowIcon(QIcon(":/swipl.png"));
 
     qRegisterMetaType<pfunc>("pfunc");
@@ -66,6 +73,9 @@ ConsoleEdit::ConsoleEdit(int argc, char **argv, QWidget *parent)
 
     // issue worker thread start
     eng->start(argc, argv);
+
+    // reactive console
+    connect(this, SIGNAL(anchorClicked(const QUrl &)), this, SLOT(anchorClicked(const QUrl &)));
 }
 
 void ConsoleEdit::add_thread(int id) {
@@ -220,7 +230,7 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         break;
 
     case Key_Backspace:
-        accept = editable;
+	accept = (cp > fixedPosition);
         break;
 
     case Key_Up:
@@ -237,7 +247,10 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
 
                     auto repc = [&](QString t) {
                         c.removeSelectedText();
-                        c.insertText(t, input_text_fmt);
+                        if (color_term)
+                            c.insertText(t, input_text_fmt);
+                        else
+                            c.insertText(t);
                         c.movePosition(c.End);
                         ensureCursorVisible();
                     };
@@ -301,7 +314,9 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
                 goto _cmd_;
         }
 
-        setCurrentCharFormat(input_text_fmt);
+        if (color_term)
+            setCurrentCharFormat(input_text_fmt);
+
         ConsoleEditBase::keyPressEvent(event);
 
         if (on_completion) {
@@ -473,10 +488,35 @@ void ConsoleEdit::user_output(QString text) {
     }
 
     auto instext = [&](QString text) {
-        c.insertText(text, output_text_fmt);
+
+        int ltext;
+//#ifndef PQCONSOLE_HANDLE_HOOVERING
+#if 0
+        static QRegExp jmsg("(ERROR|Warning):[ \t]*(([a-zA-Z]:)?[^:]+):([0-9]+)(:([0-9]+))?.*", Qt::CaseSensitive, QRegExp::RegExp2);
+        if (jmsg.exactMatch(text)) {
+            QStringList parts = jmsg.capturedTexts();
+            //qDebug() << "file" << parts[2].trimmed() << "line" << parts[4].trimmed() << "char" << parts[6].trimmed();
+            auto edit = QString("'%1':%2").arg(parts[2].trimmed()).arg(parts[4].trimmed());
+            if (!parts[6].isEmpty())
+                edit += ":" + parts[6];
+            auto html = QString("<a style=\"jmsg\" href=\"system:edit(%1)\">%2</a><br>").arg(edit).arg(text);
+            //c.movePosition(c.StartOfLine);
+            c.insertHtml(html);
+            //c.movePosition(c.EndOfLine);
+        }
+        else
+#endif
+        {
+            if (color_term)
+                c.insertText(text, output_text_fmt);
+            else
+                c.insertText(text);
+        }
+
         if (status == wait_input) {
-            promptPosition += text.length();
-            fixedPosition += text.length();
+            ltext = text.length();
+            promptPosition += ltext;
+            fixedPosition += ltext;
             ensureCursorVisible();
         }
     };
@@ -485,7 +525,9 @@ void ConsoleEdit::user_output(QString text) {
     int pos = text.indexOf('\e');
     if (pos >= 0) {
         int left = 0;
+
         static QRegExp eseq("\e\\[(?:(3([0-7]);([01])m)|(0m)|(1m;)|1;3([0-7])m|(1m)|(?:3([0-7])m))");
+
         forever {
             int pos1 = eseq.indexIn(text, pos);
             if (pos1 == -1)
@@ -525,6 +567,7 @@ void ConsoleEdit::user_output(QString text) {
                 w = QFont::Normal;
                 c = ANSI2col(0);
             }
+
             output_text_fmt.setFontWeight(w);
             output_text_fmt.setForeground(c);
 
@@ -641,13 +684,24 @@ void ConsoleEdit::onCursorPositionChanged() {
     set_cursor_tip(c);
     if (fixedPosition > c.position()) {
         viewport()->setCursor(Qt::OpenHandCursor);
+        //setReadOnly(true);
         clickable_message_line(c, true);
-    } else
+    } else {
+        setReadOnly(false);
         viewport()->setCursor(Qt::IBeamCursor);
+    }
 }
 
-/** check if line content is appropriate, then highlight or open editor on it
- */
+/** check if line content is appropriate, then highlight or open editor on it */
+#ifndef PQCONSOLE_HANDLE_HOOVERING
+
+void ConsoleEdit::clickable_message_line(QTextCursor c, bool highlight) {
+    Q_UNUSED(c)
+    Q_UNUSED(highlight)
+}
+
+#else
+
 void ConsoleEdit::clickable_message_line(QTextCursor c, bool highlight) {
 
     c.movePosition(c.StartOfLine);
@@ -691,6 +745,7 @@ void ConsoleEdit::clickable_message_line(QTextCursor c, bool highlight) {
         cposition = -1;
     }
 }
+#endif
 
 /** setup tooltip info
  */
@@ -714,33 +769,31 @@ void ConsoleEdit::onConsoleMenuAction() {
     auto a = qobject_cast<QAction *>(sender());
     if (a) {
         QString action = a->toolTip();
-
-        if (auto w = find_parent<pqMainWindow>(this)) {
-            if (ConsoleEdit *target = w->consoleActive()) {
-
-                qDebug() << action << target->status << QTime::currentTime();
-
-                if (target->status == running) {
-
-                    {   SwiPrologEngine::in_thread e;
-                        int t = PL_thread_self();
-                        Q_ASSERT(!target->thids.contains(t));
-                        target->thids.append(t);
-                        try {
-                            PL_set_prolog_flag("console_thread", PL_INTEGER, t);
-                            PlCall(action.toStdWString().data());
-                            for (int c = 0; c < 100; c++)
-                                do_events(10);
-
-                        } catch(PlException e) {
-                            qDebug() << CCP(e);
-                        }
-                        target->thids.removeLast();
+        onConsoleMenuActionMap(action);
+    }
+}
+void ConsoleEdit::onConsoleMenuActionMap(const QString& action) {
+    if (auto w = find_parent<pqMainWindow>(this)) {
+        if (ConsoleEdit *target = w->consoleActive()) {
+            qDebug() << action << target->status << QTime::currentTime();
+            if (target->status == running) {
+                {   SwiPrologEngine::in_thread e;
+                    int t = PL_thread_self();
+                    Q_ASSERT(!target->thids.contains(t));
+                    target->thids.append(t);
+                    try {
+                        PL_set_prolog_flag("console_thread", PL_INTEGER, t);
+                        PlCall(action.toStdWString().data());
+                        for (int c = 0; c < 100; c++)
+                            do_events(10);
+                    } catch(PlException e) {
+                        qDebug() << CCP(e);
                     }
-                    return;
+                    target->thids.removeLast();
                 }
-                target->query_run("notrace("+action+")");
+                return;
             }
+            target->query_run("notrace("+action+")");
         }
     }
 }
@@ -848,4 +901,17 @@ void ConsoleEdit::exec_sync::go() {
     }
     else
         go_ = t;
+}
+
+void ConsoleEdit::setSource(const QUrl &name) {
+    qDebug() << "setSource" << name;
+}
+void ConsoleEdit::anchorClicked(const QUrl &url) {
+    query_run(url.toString());
+}
+
+void ConsoleEdit::html_write(QString html) {
+    auto c = textCursor();
+    c.movePosition(c.End);
+    c.insertHtml(html);
 }

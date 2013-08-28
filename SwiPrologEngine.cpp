@@ -57,7 +57,7 @@ SwiPrologEngine::~SwiPrologEngine() {
 /** check stream property
  */
 bool SwiPrologEngine::is_tty(const FlushOutputEvents *f) { Q_UNUSED(f)
-    qDebug() << CVP(Suser_input) << "tty" << (PL_ttymode(Suser_input) == PL_RAWTTY);
+ // qDebug() << CVP(Suser_input) << "tty" << (PL_ttymode(Suser_input) == PL_RAWTTY);
     return PL_ttymode(Suser_input) == PL_RAWTTY;
 }
 
@@ -217,6 +217,7 @@ void SwiPrologEngine::run() {
 
     PL_set_prolog_flag("console_menu", PL_BOOL, TRUE);
     PL_set_prolog_flag("console_menu_version", PL_ATOM, "qt");
+    PL_set_prolog_flag("xpce_threaded", PL_BOOL, TRUE);
 
     target->add_thread(1);
     PL_exit_hook(halt_engine, NULL);
@@ -235,6 +236,11 @@ void SwiPrologEngine::run() {
 
     spe = 0;
     */
+
+    {   PlTerm color_term;
+        if (PlCall("current_prolog_flag", PlTermv("color_term", color_term)) && color_term == "false")
+            target->color_term = false;
+    }
 
     for ( ; ; ) {
         int status = PL_toplevel() ? 0 : 1;

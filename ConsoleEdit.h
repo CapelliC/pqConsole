@@ -29,6 +29,9 @@
 #ifndef PQCONSOLE_NO_HTML
     #include <QTextEdit>
     typedef QTextEdit ConsoleEditBase;
+#elif PQCONSOLE_BROWSER
+    #include <QTextBrowser>
+    typedef QTextBrowser ConsoleEditBase;
 #else
     #include <QPlainTextEdit>
     typedef QPlainTextEdit ConsoleEditBase;
@@ -89,7 +92,7 @@ public:
     void exec_func(pfunc f) { emit sig_run_function(f); }
 
     /** 5. helper syncronization for modal loop */
-    struct exec_sync {
+    struct PQCONSOLESHARED_EXPORT exec_sync {
         exec_sync(int timeout_ms = 100);
 
         void stop();
@@ -113,6 +116,15 @@ public:
 
     /** the user identifying label is attached somewhere to parents chain */
     QString titleLabel();
+
+    /** route menu / action */
+    void addActionPq(QMenu *cmmenu, QString label, QString action);
+
+    /** html_write */
+    void html_write(QString html);
+
+    /** can be disabled from ~/.plrc */
+    static bool color_term;
 
 protected:
 
@@ -208,8 +220,13 @@ protected:
 
     /** check if line content is appropriate, then highlight or open editor on it */
     void clickable_message_line(QTextCursor c, bool highlight);
+#ifdef PQCONSOLE_HANDLE_HOOVERING
     int cposition;
     QTextCharFormat fposition;
+#endif
+
+    /** sense URL */
+    virtual void setSource(const QUrl & name);
 
 public slots:
 
@@ -218,6 +235,7 @@ public slots:
 
     /** serve console menus */
     void onConsoleMenuAction();
+    void onConsoleMenuActionMap(const QString &action);
 
     /** 2. attempt to run generic code inter threads */
     void run_function(pfunc f) { f(); }
@@ -234,10 +252,13 @@ protected slots:
     void command_do();
 
     /** push completion request in current command line */
-    void insertCompletion(QString);
+    void insertCompletion(QString completion);
 
     /** when engine gracefully complete-... */
     void eng_completed();
+
+    /** handle HREF (simpler is query_run(Target) */
+    void anchorClicked(const QUrl &link);
 
 signals:
 
@@ -246,9 +267,6 @@ signals:
 
     /** 3. attempt to run generic code inter threads */
     void sig_run_function(pfunc f);
-
-    /** 3. attempt to run generic code inter threads */
-    void sig_run_function_io(pfunc f);
 };
 
 #endif

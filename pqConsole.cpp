@@ -283,18 +283,6 @@ PREDICATE0(win_has_menu) {
 /** MENU interface
  *  helper to lookup position and issue action creation
  */
-static QAction* add_action(ConsoleEdit *ce, QMenu *mn, QString Label, QString ctxtmod, QString Goal, QAction *before = 0) {
-    auto a = new QAction(mn);
-    a->setText(Label);
-    a->setToolTip(ctxtmod + ':' + Goal);  // use as spare storage for Module:Goal
-    QObject::connect(a, SIGNAL(triggered()), ce, SLOT(onConsoleMenuAction()));
-    if (before)
-        mn->insertAction(before, a);
-    else
-        mn->addAction(a);
-    return a;
-}
-
 /** win_insert_menu(+Label, +Before)
  *  do action construction
  */
@@ -330,42 +318,70 @@ PREDICATE(win_insert_menu, 2) {
 PREDICATE(win_insert_menu_item, 4) {
 
     if (ConsoleEdit *ce = console_by_thread()) {
-        QString Pulldown = t2w(PL_A1), Label = t2w(PL_A2), Before = t2w(PL_A3), Goal = t2w(PL_A4);
-        //qDebug() << "win_insert_menu_item" << Pulldown << Label << Before << Goal;
+        QString Pulldown = t2w(PL_A1), Label, Before = t2w(PL_A3), Goal;
+        QList<QPair<QString, QString>> lab_act;
+
+        if (PL_A2.arity() == 2 /* &&
+            strcmp(PL_A2.name(), "/") == 0 &&
+            PL_A2[2].type() == PL_LIST &&
+            PL_A4.type() == PL_LIST */ )
+        {
+            Label = t2w(PL_A2[1]);
+            PlTail labels(PL_A2[2]), actions(PL_A4);
+            PlTerm label, action;
+            while (labels.next(label) && actions.next(action))
+                lab_act.append(qMakePair(t2w(label), t2w(action)));
+        }
+        else {
+            Label = t2w(PL_A2);
+            Goal = t2w(PL_A4);
+        }
 
         QString ctxtmod = t2w(PlAtom(PL_module_name(PL_context())));
         // if (PlCall("context_module", cx)) ctxtmod = t2w(cx); -- same as above: system
         ctxtmod = "win_menu";
 
         ce->exec_func([=]() {
-            if (auto mw = qobject_cast<QMainWindow*>(ce->parentWidget())) {
+            if (auto mw = qobject_cast<pqMainWindow*>(ce->parentWidget())) {
                 foreach (QAction *ac, mw->menuBar()->actions())
                     if (ac->text() == Pulldown) {
                         QMenu *mn = ac->menu();
-                        if (Label != "--")
-                            foreach (QAction *bc, ac->menu()->actions())
-                                if (bc->text() == Label) {
-                                    bc->setToolTip(Goal);
+                        if (!lab_act.isEmpty()) {
+                            foreach (QAction *cm, mn->actions())
+                                if (cm->text() == Label) {
+                                    cm->setMenu(new QMenu(Label));
+                                    foreach (auto p, lab_act)
+                                        mw->addActionPq(ce, cm->menu(), p.first, p.second);
                                     return;
                                 }
-                        if (Before == "-") {
-                            if (Label == "--")
-                                mn->addSeparator();
-                            else
-                                add_action(ce, mn, Label, ctxtmod, Goal);
                             return;
                         }
-                        foreach (QAction *bc, ac->menu()->actions())
-                            if (bc->text() == Before) {
+                        else {
+                            if (Label != "--")
+                                foreach (QAction *bc, mn->actions())
+                                    if (bc->text() == Label) {
+                                        bc->setToolTip(Goal);
+                                        return;
+                                    }
+                            if (Before == "-") {
                                 if (Label == "--")
-                                    mn->insertSeparator(bc);
+                                    mn->addSeparator();
                                 else
-                                    add_action(ce, mn, Label, ctxtmod, Goal, bc);
+                                    mw->add_action(ce, mn, Label, ctxtmod, Goal);
                                 return;
                             }
+                            foreach (QAction *bc, mn->actions())
+                                if (bc->text() == Before) {
+                                    if (Label == "--")
+                                        mn->insertSeparator(bc);
+                                    else
+                                        mw->add_action(ce, mn, Label, ctxtmod, Goal, bc);
+                                    return;
+                                }
 
-                        QAction *bc = add_action(ce, mn, Before, ctxtmod, "");
-                        add_action(ce, mn, Label, ctxtmod, Goal, bc);
+                            QAction *bc = mw->add_action(ce, mn, Before, ctxtmod, "");
+                            mw->add_action(ce, mn, Label, ctxtmod, Goal, bc);
+                        }
                     }
             }
         });
@@ -512,83 +528,6 @@ PREDICATE(win_message_box, 2) {
 
     if (c) {
         QString Text = t2w(PL_A1);
-        /*
-        record_t r_options = PL_record(PL_A2);
-
-        int rc = FALSE;
-        ConsoleEdit::exec_sync s;
-        QString err;
-
-        c->exec_func([&]() {
-
-            PlFrame fr_;
-            PlTerm Options;
-            if (!PL_recorded(r_options, Options)) {
-                qDebug() << "!PL_recorded(r_options, options)";
-                return;
-            }
-
-            QMessageBox mbox(c);
-            mbox.setText(Text); // should as well become an option - will provide win_message_box/1
-
-            // scan options
-            double image_scale = 0;
-            int minsize_x = 0, minsize_y = 0;
-            QString image;
-
-            PlTerm Option;
-            for (PlTail t(Options); t.next(Option); )
-                if (Option.arity() == 1) {
-                    QString name = Option.name();
-                    if (name == "image")
-                        image = t2w(Option[1]);
-                    else if (name == "image_scale")
-                        image_scale = double(Option[1]);
-                    else if (name == "minsize_x")
-                        minsize_x = int(Option[1]);
-                    else if (name == "minsize_y")
-                        minsize_y = int(Option[1]);
-                    else if ((err = unify(name.toUtf8(), &mbox, Option)).count() > 0)
-                        return; // reflection at work !
-                }
-                else {
-                    err = c->tr("option %1 : invalid arity").arg(t2w(Option));
-                    return;
-                }
-
-            // get Image file, if required
-            QPixmap imfile;
-            if (!image.isEmpty()) {
-                if (!imfile.load(image)) {
-                    err = c->tr("icon file %1 not found").arg(image);
-                    return;
-                }
-                if (image_scale)
-                    imfile = imfile.scaled(imfile.size() * image_scale,
-                                           Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-            }
-
-            if (!imfile.isNull())
-                mbox.setIconPixmap(imfile);
-
-            if (minsize_x || minsize_y) {
-                auto horizontalSpacer = new QSpacerItem(minsize_x, minsize_y, QSizePolicy::Minimum, QSizePolicy::Expanding);
-                auto layout = qobject_cast<QGridLayout*>(mbox.layout());
-                layout->addItem(horizontalSpacer, layout->rowCount(), 0, 1, layout->columnCount());
-            }
-
-            rc = mbox.exec() == mbox.Ok;
-            s.go();
-        });
-        s.stop();
-
-        PL_erase(r_options);
-
-        if (!err.isEmpty())
-            throw PlException(A(err));
-
-        return rc;
-        */
 
         QString Title = "swipl-win", Image;
         PlTerm Icon; //QMessageBox::Icon Icon = QMessageBox::NoIcon;
@@ -843,6 +782,79 @@ PREDICATE0(paste) {
             c->textCursor().insertText(QApplication::clipboard()->text());
             do_events();
         });
+        return TRUE;
+    }
+    return FALSE;
+}
+
+#undef PROLOG_MODULE
+#define PROLOG_MODULE "system"
+
+/** win_preference_groups(-Groups:list)
+ */
+PREDICATE(win_preference_groups, 1) {
+    Preferences p;
+    PlTail l(PL_A1);
+    foreach (auto g, p.childGroups())
+        l.append(A(g));
+    l.close();
+    return TRUE;
+}
+
+/** win_preference_keys(+Group, -Keys:list)
+ */
+PREDICATE(win_preference_keys, 2) {
+    Preferences p;
+    PlTail l(PL_A1);
+    foreach (auto k, p.childKeys())
+        l.append(A(k));
+    l.close();
+    return TRUE;
+}
+
+/** win_current_preference(+Group, +Key, -Value)
+ */
+PREDICATE(win_current_preference, 3) {
+    Preferences p;
+
+    auto g = t2w(PL_A1),
+         k = t2w(PL_A2);
+
+    p.beginGroup(g);
+    if (p.contains(k)) {
+        auto x = p.value(k).toString();
+        return PL_A3 = PlCompound(x.toStdWString().data());
+    }
+
+    return FALSE;
+}
+
+/** win_set_preference(+Group, +Key, +Value)
+ */
+PREDICATE(win_set_preference, 3) {
+    Preferences p;
+
+    auto g = t2w(PL_A1),
+         k = t2w(PL_A2);
+
+    p.beginGroup(g);
+    p.setValue(k, serialize(PL_A3));
+    return TRUE;
+}
+
+/** output html at prompt
+ */
+PREDICATE(win_html_write, 1) {
+    ConsoleEdit* c = console_by_thread();
+    if (c) {
+        // run on foreground
+        QString html = t2w(PL_A1);
+        ConsoleEdit::exec_sync s;
+        c->exec_func([&]() {
+            c->html_write(html);
+            s.go();
+        });
+        s.stop();
         return TRUE;
     }
     return FALSE;

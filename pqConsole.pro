@@ -10,7 +10,7 @@
 # Project created by QtCreator 2013-03-27T12:59:54
 #-------------------------------------------------
 
-QT += testlib
+QT += core gui
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 TARGET = pqConsole
