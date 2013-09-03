@@ -45,9 +45,6 @@
 /** peek color by index */
 static QColor ANSI2col(int c, bool highlight = false) { return Preferences::ANSI2col(c, highlight); }
 
-/** can be disabled from ~/.plrc */
-bool ConsoleEdit::color_term = true;
-
 /** build command line interface to SWI Prolog engine
  *  this start the *primary* console
  */
@@ -247,10 +244,7 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
 
                     auto repc = [&](QString t) {
                         c.removeSelectedText();
-                        if (color_term)
-                            c.insertText(t, input_text_fmt);
-                        else
-                            c.insertText(t);
+                        c.insertText(t, input_text_fmt);
                         c.movePosition(c.End);
                         ensureCursorVisible();
                     };
@@ -308,16 +302,14 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
 
     if (accept) {
 
+        setCurrentCharFormat(input_text_fmt);
+        ConsoleEditBase::keyPressEvent(event);
+
         if (is_tty && c.atEnd()) {
             cmd = event->text();
             if (!cmd.isEmpty())
                 goto _cmd_;
         }
-
-        if (color_term)
-            setCurrentCharFormat(input_text_fmt);
-
-        ConsoleEditBase::keyPressEvent(event);
 
         if (on_completion) {
             c.select(QTextCursor::WordUnderCursor);
@@ -506,12 +498,7 @@ void ConsoleEdit::user_output(QString text) {
         }
         else
 #endif
-        {
-            if (color_term)
-                c.insertText(text, output_text_fmt);
-            else
-                c.insertText(text);
-        }
+            c.insertText(text, output_text_fmt);
 
         if (status == wait_input) {
             ltext = text.length();
@@ -567,7 +554,6 @@ void ConsoleEdit::user_output(QString text) {
                 w = QFont::Normal;
                 c = ANSI2col(0);
             }
-
             output_text_fmt.setFontWeight(w);
             output_text_fmt.setForeground(c);
 
@@ -578,6 +564,8 @@ void ConsoleEdit::user_output(QString text) {
     }
     else
         instext(text);
+
+        //QString x = text();
 }
 
 bool ConsoleEdit::match_thread(int thread_id) const {

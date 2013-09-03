@@ -848,13 +848,15 @@ PREDICATE(win_html_write, 1) {
     ConsoleEdit* c = console_by_thread();
     if (c) {
         // run on foreground
-        QString html = t2w(PL_A1);
-        ConsoleEdit::exec_sync s;
-        c->exec_func([&]() {
-            c->html_write(html);
-            s.go();
-        });
-        s.stop();
+        if (PL_A1.type() == PL_ATOM) {
+            QString html = t2w(PL_A1);
+            ConsoleEdit::exec_sync s;
+            c->exec_func([&]() {
+                c->html_write(html);
+                s.go();
+            });
+            s.stop();
+        }
         return TRUE;
     }
     return FALSE;

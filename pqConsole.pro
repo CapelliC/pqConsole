@@ -17,6 +17,7 @@ TARGET = pqConsole
 TEMPLATE = lib
 
 DEFINES += PQCONSOLE_LIBRARY
+DEFINES += PQCONSOLE_BROWSER
 
 # please, not obsolete compiler
 QMAKE_CXXFLAGS += -std=c++0x
@@ -30,7 +31,8 @@ SOURCES += \
     Swipl_IO.cpp \
     pqMainWindow.cpp \
     Preferences.cpp \
-    FlushOutputEvents.cpp
+    FlushOutputEvents.cpp \
+    pqApplication.cpp
 
 HEADERS += \
     pqConsole.h \
@@ -44,7 +46,8 @@ HEADERS += \
     pqMainWindow.h \
     Preferences.h \
     do_events.h \
-    FlushOutputEvents.h
+    FlushOutputEvents.h \
+    pqApplication.h
 
 symbian {
     MMP_RULES += EXPORTUNFROZEN
