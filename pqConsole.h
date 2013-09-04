@@ -24,6 +24,10 @@
 #define PQCONSOLE_H
 
 #include "pqConsole_global.h"
+#include "ConsoleEdit.h"
+
+#include <QMetaObject>
+#include <QMetaProperty>
 
 /*!
   \mainpage
@@ -46,6 +50,21 @@ public:
 
     /*! Run a vanilla QMainWindow displaying SWI-Prolog console */
     int runDemo(int argc, char *argv[]);
+
+    /** depth first search of widgets hierarchy, from application topLevelWidgets */
+    static QWidget *search_widget(std::function<bool(QWidget* w)> match);
+
+    /** search widgets hierarchy looking for the first */
+    static ConsoleEdit *by_thread();
+
+    /** search widgets hierarchy looking for any ConsoleEdit */
+    static ConsoleEdit *peek_first();
+
+    /** unify a property of QObject */
+    static QString unify(const QMetaProperty& p, QObject *o, PlTerm v);
+
+    /** unify a property of QObject, seek by name */
+    static QString unify(const char* name, QObject *o, PlTerm v);
 };
 
 #endif // PQCONSOLE_H

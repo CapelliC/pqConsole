@@ -20,7 +20,7 @@
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-//#define win_builtins
+#define win_builtins 1
 
 // by now peek system namespace. Eventually, will move to pqConsole
 #define PROLOG_MODULE "system"

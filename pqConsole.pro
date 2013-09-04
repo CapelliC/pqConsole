@@ -32,7 +32,8 @@ SOURCES += \
     pqMainWindow.cpp \
     Preferences.cpp \
     FlushOutputEvents.cpp \
-    pqApplication.cpp
+    pqApplication.cpp \
+    win_builtins.cpp
 
 HEADERS += \
     pqConsole.h \
