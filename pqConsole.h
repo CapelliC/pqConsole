@@ -46,8 +46,6 @@
 class PQCONSOLESHARED_EXPORT pqConsole {
 public:
 
-    pqConsole();
-
     /*! Run a vanilla QMainWindow displaying SWI-Prolog console */
     int runDemo(int argc, char *argv[]);
 

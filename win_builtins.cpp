@@ -53,8 +53,7 @@
  *  get/set console title
  */
 PREDICATE(window_title, 2) {
-    ConsoleEdit* c = pqConsole::by_thread();
-    if (c) {
+    if (ConsoleEdit* c = pqConsole::by_thread()) {
         QWidget *w = c->parentWidget();
         if (qobject_cast<QMainWindow*>(w)) {
             PL_A1 = A(w->windowTitle());
@@ -167,7 +166,6 @@ PREDICATE(win_insert_menu, 2) {
  *  does search insertion position and create menu item
  */
 PREDICATE(win_insert_menu_item, 4) {
-
     if (ConsoleEdit *ce = pqConsole::by_thread()) {
         QString Pulldown = t2w(PL_A1), Label, Before = t2w(PL_A3), Goal;
         QList<QPair<QString, QString>> lab_act;
@@ -245,8 +243,7 @@ PREDICATE(win_insert_menu_item, 4) {
  *  as requested by Annie. Should as well be implemented capturing ANSI terminal sequence
  */
 PREDICATE0(tty_clear) {
-    ConsoleEdit* c = pqConsole::by_thread();
-    if (c) {
+    if (ConsoleEdit* c = pqConsole::by_thread()) {
         c->tty_clear();
         return TRUE;
     }
@@ -258,9 +255,6 @@ PREDICATE0(tty_clear) {
  *  registry_key(Key) unused by now
  */
 PREDICATE(win_open_console, 5) {
-
-    qDebug() << "win_open_console" << CVP(CT);
-
     ConsoleEdit *ce = pqConsole::peek_first();
     if (!ce)
         throw PlException(A("no ConsoleEdit available"));
@@ -319,9 +313,7 @@ PREDICATE(win_open_console, 5) {
  *   image_scale - multiplier to scale image
  */
 PREDICATE(win_message_box, 2) {
-    ConsoleEdit* c = pqConsole::by_thread();
-
-    if (c) {
+    if (ConsoleEdit* c = pqConsole::by_thread()) {
         QString Text = t2w(PL_A1);
 
         QString Title = "swipl-win", Image;
@@ -443,14 +435,15 @@ PREDICATE(win_set_preference, 3) {
 
     p.beginGroup(g);
     p.setValue(k, serialize(PL_A3));
+    p.save();
+
     return TRUE;
 }
 
 /** output html at prompt
  */
 PREDICATE(win_html_write, 1) {
-    ConsoleEdit* c = pqConsole::by_thread();
-    if (c) {
+    if (ConsoleEdit* c = pqConsole::by_thread()) {
         // run on foreground
         if (PL_A1.type() == PL_ATOM) {
             QString html = t2w(PL_A1);

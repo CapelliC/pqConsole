@@ -63,7 +63,7 @@ public:
         in_thread();
         ~in_thread();
 
-        /** run named <n> script <t> in current thread */
+        /** run named script in current thread */
         bool named_load(QString name, QString script, bool silent = true);
 
     private:

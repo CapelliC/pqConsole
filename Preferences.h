@@ -36,8 +36,11 @@ class Preferences : public QSettings
     Q_OBJECT
 public:
 
+    /** load current settings */
     explicit Preferences(QObject *parent = 0);
-    ~Preferences();
+
+    /** commit settings to persistent storage */
+    void save();
 
     /** let user select with a font dialog */
     QFont console_font;

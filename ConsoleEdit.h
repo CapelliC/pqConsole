@@ -26,12 +26,12 @@
 #include <QEvent>
 #include <QCompleter>
 
-#ifndef PQCONSOLE_NO_HTML
-    #include <QTextEdit>
-    typedef QTextEdit ConsoleEditBase;
-#elif PQCONSOLE_BROWSER
+#if defined(PQCONSOLE_BROWSER)
     #include <QTextBrowser>
     typedef QTextBrowser ConsoleEditBase;
+#elif defined(PQCONSOLE_NO_HTML)
+    #include <QTextEdit>
+    typedef QTextEdit ConsoleEditBase;
 #else
     #include <QPlainTextEdit>
     typedef QPlainTextEdit ConsoleEditBase;
