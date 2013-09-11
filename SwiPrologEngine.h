@@ -66,6 +66,9 @@ public:
         /** run named script in current thread */
         bool named_load(QString name, QString script, bool silent = true);
 
+        /** if module not yet loaded, load code (i.e. assumes it starts with :-module(module)) */
+        bool inline_module(QString Module, QString code, bool silent = true);
+
     private:
         PlFrame *frame;
     };

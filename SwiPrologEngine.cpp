@@ -327,6 +327,19 @@ bool SwiPrologEngine::in_thread::named_load(QString n, QString t, bool silent) {
     return false;
 }
 
+/** if module not yet loaded, load code (i.e. assumes it starts with :-module(module))
+ */
+bool SwiPrologEngine::in_thread::inline_module(QString module, QString  code, bool silent) {
+    PlTerm v;
+    if (!PlCall("current_module", PlTermv(A(module), v))) {
+        qDebug() << "loading module snippet" << module;
+        named_load(module, code, silent);
+        return true;
+    }
+    qDebug() << "module available" << module;
+    return false;
+}
+
 /** handle application quit request in thread that started PL_toplevel
  *  logic moved here from pqMainWindow
  */
