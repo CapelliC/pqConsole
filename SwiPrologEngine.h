@@ -69,6 +69,9 @@ public:
         /** if module not yet loaded, load code (i.e. assumes it starts with :-module(module)) */
         bool inline_module(QString Module, QString code, bool silent = true);
 
+        /** if not yet loaded, parse module code from resource */
+        bool resource_module(QString module, QString location = ":/prolog", bool silent = true);
+
     private:
         PlFrame *frame;
     };

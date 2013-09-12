@@ -32,6 +32,7 @@
 #include <QApplication>
 #include <signal.h>
 #include <QTimer>
+#include <QFile>
 
 /** singleton handling - process main engine
  */
@@ -322,7 +323,7 @@ bool SwiPrologEngine::in_thread::named_load(QString n, QString t, bool silent) {
         }
     }
     catch(PlException ex) {
-        qDebug() << CCP(ex);
+        qDebug() << t2w(ex);
     }
     return false;
 }
@@ -330,14 +331,31 @@ bool SwiPrologEngine::in_thread::named_load(QString n, QString t, bool silent) {
 /** if module not yet loaded, load code (i.e. assumes it starts with :-module(module))
  */
 bool SwiPrologEngine::in_thread::inline_module(QString module, QString  code, bool silent) {
-    PlTerm v;
-    if (!PlCall("current_module", PlTermv(A(module), v))) {
+    //PlTerm v;
+    //if (!PlCall("current_module", PlTermv(A(module), v))) {
+    if (!PlCall("current_module", PlTermv(A(module)))) {
         qDebug() << "loading module snippet" << module;
-        named_load(module, code, silent);
-        return true;
+        return named_load(module, code, silent);
     }
     qDebug() << "module available" << module;
-    return false;
+    return true;
+}
+
+/** if not yet loaded, parse module code from resource
+ */
+bool SwiPrologEngine::in_thread::resource_module(QString module, QString location, bool silent) {
+    if (!PlCall("current_module", PlTermv(A(module)))) {
+        qDebug() << "loading resource_module" << module << "from" << location;
+        QString path = location + "/" + module + ".pl";
+        QFile file(path);
+        if (!file.open(file.ReadOnly | file.Text)) {
+            qDebug() << "path not found" << path;
+            return false;
+        }
+        return named_load(path, file.readAll(), silent);
+    }
+    qDebug() << "module available" << module;
+    return true;
 }
 
 /** handle application quit request in thread that started PL_toplevel
