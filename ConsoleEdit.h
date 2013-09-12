@@ -60,6 +60,9 @@ public:
     /** create in prolog thread - from win_open_console(), add to tabbed interface */
     ConsoleEdit(Swipl_IO* io);
 
+    /** handle consoles list */
+    virtual ~ConsoleEdit();
+
     /** push command on queue */
     bool command(QString text);
 

@@ -27,6 +27,7 @@
 #include "Completion.h"
 #include "Preferences.h"
 #include "pqMainWindow.h"
+#include "pqConsole.h"
 #include <signal.h>
 
 #include <QUrl>
@@ -102,6 +103,12 @@ ConsoleEdit::ConsoleEdit(Swipl_IO* io)
     setup(io);
 }
 
+/** handle consoles list
+ */
+ConsoleEdit::~ConsoleEdit() {
+    pqConsole::removeConsole(this);
+}
+
 /** more factorization, after introducing the possibility
  *  of instancing in a tabbed interface
  */
@@ -123,6 +130,8 @@ void ConsoleEdit::setup(Swipl_IO* io) {
  *  different setting required, due to difference in events handling
  */
 void ConsoleEdit::setup() {
+
+    pqConsole::addConsole(this);
 
     status = idle;
     promptPosition = -1;

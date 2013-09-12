@@ -28,6 +28,7 @@
 
 #include <QMetaObject>
 #include <QMetaProperty>
+#include <QMutex>
 
 /*!
   \mainpage
@@ -49,8 +50,16 @@ public:
     /*! Run a vanilla QMainWindow displaying SWI-Prolog console */
     int runDemo(int argc, char *argv[]);
 
+#if 0
     /** depth first search of widgets hierarchy, from application topLevelWidgets */
     static QWidget *search_widget(std::function<bool(QWidget* w)> match);
+#endif
+
+    /** as noted by Kuba Ober, search_widget() isn't thread safe.
+      * Replaced by a list to be safely handled from ConsoleEdit.
+      */
+    static void addConsole(ConsoleEdit*);
+    static void removeConsole(ConsoleEdit*);
 
     /** search widgets hierarchy looking for the first */
     static ConsoleEdit *by_thread();
@@ -63,6 +72,10 @@ public:
 
     /** unify a property of QObject, seek by name */
     static QString unify(const char* name, QObject *o, PlTerm v);
+
+private:
+    static QList<ConsoleEdit*> consoles;
+    static QMutex consoles_sync;
 };
 
 #endif // PQCONSOLE_H

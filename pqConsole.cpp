@@ -58,6 +58,7 @@ int pqConsole::runDemo(int argc, char *argv[]) {
     return a.exec();
 }
 
+#if 0
 /** depth first search of widgets hierarchy, from application topLevelWidgets
  */
 QWidget *pqConsole::search_widget(std::function<bool(QWidget* w)> match) {
@@ -94,6 +95,41 @@ ConsoleEdit *pqConsole::peek_first() {
     return qobject_cast<ConsoleEdit*>(search_widget([](QWidget* p) {
         return qobject_cast<ConsoleEdit*>(p) != 0;
     }));
+}
+#endif
+
+QList<ConsoleEdit*> pqConsole::consoles;
+QMutex pqConsole::consoles_sync;
+
+void pqConsole::addConsole(ConsoleEdit* c) {
+    QMutexLocker l(&consoles_sync);
+    Q_ASSERT(!consoles.contains(c));
+    consoles.append(c);
+}
+
+void pqConsole::removeConsole(ConsoleEdit* c) {
+    QMutexLocker l(&consoles_sync);
+    Q_ASSERT(consoles.contains(c));
+    consoles.removeOne(c);
+}
+
+/** search widgets hierarchy looking for the first (the only)
+ *  that owns the calling thread ID
+ */
+ConsoleEdit *pqConsole::by_thread() {
+    QMutexLocker l(&consoles_sync);
+    int thid = PL_thread_self();
+    foreach (ConsoleEdit *ce, consoles)
+        if (ce->match_thread(thid))
+            return ce;
+    return 0;
+}
+
+/** search widgets hierarchy looking for any ConsoleEdit
+ */
+ConsoleEdit *pqConsole::peek_first() {
+    QMutexLocker l(&consoles_sync);
+    return consoles.isEmpty() ? 0 : consoles[0];
 }
 
 /** unify a property of QObject:
