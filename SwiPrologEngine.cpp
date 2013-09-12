@@ -249,20 +249,32 @@ void SwiPrologEngine::run() {
  */
 void SwiPrologEngine::query_run(QString text) {
     QMutexLocker lk(&sync);
+#if !defined(_MSC_VER) || _MSC_VER >= 1800
     queries.append(query {false, "", text});
+#else
+    queries.append(query(false, "", text));
+#endif
 }
 
 /** push a named query, thus unlocking the execution polling loop
  */
 void SwiPrologEngine::query_run(QString module, QString text) {
     QMutexLocker lk(&sync);
+#if !defined(_MSC_VER) || _MSC_VER >= 1800
     queries.append(query {false, module, text});
+#else
+    queries.append(query(false, module, text));
+#endif
 }
 
 /** allows to run a delayed script from resource at startup
  */
 void SwiPrologEngine::script_run(QString name, QString text) {
+#if !defined(_MSC_VER) || _MSC_VER >= 1800
     queries.append(query {true, name, text});
+#else
+    queries.append(query(true, name, text));
+#endif
     QTimer::singleShot(100, this, SLOT(awake()));
 }
 void SwiPrologEngine::awake() {

@@ -509,11 +509,11 @@ void ConsoleEdit::user_output(QString text) {
     };
 
     // filter and apply (some) ANSI sequence
-    int pos = text.indexOf('\e');
+    int pos = text.indexOf('\x1B');
     if (pos >= 0) {
         int left = 0;
 
-        static QRegExp eseq("\e\\[(?:(3([0-7]);([01])m)|(0m)|(1m;)|1;3([0-7])m|(1m)|(?:3([0-7])m))");
+        static QRegExp eseq("\x1B\\[(?:(3([0-7]);([01])m)|(0m)|(1m;)|1;3([0-7])m|(1m)|(?:3([0-7])m))");
 
         forever {
             int pos1 = eseq.indexIn(text, pos);

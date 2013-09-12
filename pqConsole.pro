@@ -6,10 +6,6 @@
 #--------------------------------------------------
 # Ing. Capelli Carlo - Brescia 2013
 
-#-------------------------------------------------
-# Project created by QtCreator 2013-03-27T12:59:54
-#-------------------------------------------------
-
 QT += core gui
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -18,9 +14,11 @@ TEMPLATE = lib
 
 DEFINES += PQCONSOLE_LIBRARY
 DEFINES += PQCONSOLE_BROWSER
+# prevent symbol/macro clashes with Qt
+DEFINES += PL_SAFE_ARG_MACROS
 
 # please, not obsolete compiler
-QMAKE_CXXFLAGS += -std=c++0x
+!macx: QMAKE_CXXFLAGS += -std=c++0x
 
 SOURCES += \
     pqConsole.cpp \
@@ -60,8 +58,28 @@ symbian {
     DEPLOYMENT += addFiles
 }
 
-unix:!symbian {
+macx {
+    QT_CONFIG -= no-pkg-config
+    # The mac build of qmake has pkg-config support disabled by default, see
+    # http://stackoverflow.com/a/16972067/1329652
+    !system(pkg-config --exists swipl):error("pkg-config indicates that swipl is missing.")
+    SWIPL_CXXFLAGS = $$system("pkg-config --cflags swipl")
+    # remove the macports include path since it'll interfere with Qt
+    SWIPL_CXXFLAGS = $$replace(SWIPL_CXXFLAGS, "-I/opt/local/include", "")
+    SWIPL_LFLAGS = $$system("pkg-config --libs-only-L --libs-only-l swipl")
+    QMAKE_CXXFLAGS += $$SWIPL_CXXFLAGS
+    QMAKE_LFLAGS += $$SWIPL_LFLAGS
 
+    greaterThan(QT_MAJOR_VERSION, 4): {
+        CONFIG += c++11
+        cache()
+    } else {
+        QMAKE_CXXFLAGS += -stdlib=libc++ -std=c++0x
+        QMAKE_LFLAGS += -stdlib=libc++
+    }
+}
+
+unix:!symbian:!macx {
     # because SWI-Prolog is built from source
     CONFIG += link_pkgconfig
     PKGCONFIG += swipl
@@ -75,10 +93,22 @@ unix:!symbian {
     INSTALLS += target
 }
 
-windows {
-    SwiPl = "C:\Program Files\pl"
+win32 {
+    contains(QMAKE_HOST.arch, x86_64) {
+       SwiPl = "C:\Program Files\swipl"
+    } else {
+       SwiPl = "C:\Program Files (x86)\swipl"
+    }
     INCLUDEPATH += $$SwiPl\include
-    LIBS += -L$$SwiPl\bin -lswipl
+    LIBS += -L$$SwiPl\lib
+    win32-msvc*: {
+        CONFIG += c++11
+        DEFINES += ssize_t=intptr_t
+        QMAKE_LFLAGS += libswipl.dll.a
+    } else {
+        QMAKE_CXXFLAGS += -std=c++0x
+        LIBS += -lswipl
+    }
 }
 
 OTHER_FILES += \

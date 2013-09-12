@@ -44,15 +44,15 @@ QVariant term2variant(PlTerm t) {
 
 PlTerm variant2term(const QVariant& v) {
     switch (v.type()) {
-    case v.Char:
-    case v.String:
-    case v.ByteArray:
+    case QVariant::Char:
+    case QVariant::String:
+    case QVariant::ByteArray:
         return PlTerm(v.toString().toStdWString().data());
-    case v.Int:
+    case QVariant::Int:
         return PlTerm(long(v.toInt()));
-    case v.Double:
+    case QVariant::Double:
         return PlTerm(v.toDouble());
-    case v.List: {
+    case QVariant::List: {
         PlTerm t;
         PlTail l(t);
         foreach(QVariant e, v.toList())

@@ -120,6 +120,8 @@ protected:
         bool is_script; // change entry type
         QString name;   // arbitrary symbol
         QString text;   // if is_script is path name, else query text
+        query(bool is_script, const QString & name, const QString & text) :
+           is_script(is_script), name(name), text(text) {}
     };
 
     QMutex sync;
