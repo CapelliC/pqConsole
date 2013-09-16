@@ -203,7 +203,7 @@ protected:
     void set_cursor_tip(QTextCursor c);
 
     /** attempt to track *where* to place outpout */
-    enum e_status { idle, attaching, wait_input, running, closing, eof };
+    enum e_status { idle, wait_input, running, closing, eof };
     e_status status;
     int promptPosition;
     bool is_tty;
@@ -267,6 +267,9 @@ signals:
 
     /** 3. attempt to run generic code inter threads */
     void sig_run_function(pfunc f);
+
+    /** notify SWI-Prolog has been initialized, ready to run */
+    void engine_ready();
 };
 
 #endif

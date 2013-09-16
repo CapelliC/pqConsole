@@ -294,8 +294,6 @@ void SwiPrologEngine::awake() {
 SwiPrologEngine::in_thread::in_thread()
     : frame(0)
 {
-    PL_thread_attr_t attr;
-
     while (!spe)
         msleep(100);
     while (!spe->isRunning())
@@ -303,9 +301,13 @@ SwiPrologEngine::in_thread::in_thread()
     while (spe->argc)
         msleep(100);
 
+    PL_thread_attr_t attr;
     memset(&attr, 0, sizeof(attr));
     attr.flags = PL_THREAD_NO_DEBUG;
-    attr.alias = (char*)"__gui";
+
+    // CC: aliasing should have a *different* name for different threads...
+    //attr.alias = (char*)"__gui";
+    qDebug() << "in_thread:PL_thread_attach_engine" << CT;
 
     int id = PL_thread_attach_engine(&attr);
     Q_ASSERT(id >= 0);			/* JW: Should throw exception */

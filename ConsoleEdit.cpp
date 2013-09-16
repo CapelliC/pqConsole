@@ -597,6 +597,9 @@ void ConsoleEdit::user_prompt(int threadId, bool tty) {
     setTextCursor(c);
     ensureCursorVisible();
 
+    if (status == idle)
+        emit engine_ready();
+
     status = wait_input;
 
     if (commands.count() > 0)
@@ -619,6 +622,10 @@ void ConsoleEdit::command_do() {
     QTextCursor c = textCursor();
     c.movePosition(QTextCursor::End);
     c.insertText(cmd);
+
+    c.movePosition(QTextCursor::End);
+    promptPosition = fixedPosition = c.position();
+
     emit user_input(cmd);
 }
 
