@@ -293,14 +293,14 @@ PREDICATE0(interrupt) {
 /** set/get settings of thread associated console
  *  some selected property
  *
- *  updateRefreshRate(N) default 100
- *  - allow to alter default refresh rate (simply count outputs before setting cursor at end)
+ *  pq - updateRefreshRate(N) default 100
+ *     - allow to alter default refresh rate (simply count outputs before setting cursor at end)
  *
- *  maximumBlockCount(N) default 0
- *  - remove (from top) text lines when exceeding the limit
+ *  Qt - maximumBlockCount(N) default 0
+ *     - remove (from top) text lines when exceeding the limit
  *
- *  lineWrapMode(Mode) Mode --> 'NoWrap' | 'WidgetWidth'
- *  - when NoWrap, an horizontal scroll bar could display
+ *  Qt - lineWrapMode(Mode) Mode --> 'NoWrap' | 'WidgetWidth'
+ *     - when NoWrap, an horizontal scroll bar could display
  */
 PREDICATE(console_settings, 1) {
     ConsoleEdit* c = pqConsole::by_thread();

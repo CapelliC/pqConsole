@@ -38,6 +38,7 @@
 #include <QToolTip>
 #include <QKeyEvent>
 #include <QMimeData>
+#include <QTextBlock>
 #include <QMessageBox>
 #include <QMainWindow>
 #include <QApplication>
@@ -52,9 +53,6 @@ static QColor ANSI2col(int c, bool highlight = false) { return Preferences::ANSI
 ConsoleEdit::ConsoleEdit(int argc, char **argv, QWidget *parent)
     : ConsoleEditBase(parent), io(0)
 {
-    // mandatory for QTextBrowser instances
-    setReadOnly(false);
-
     qApp->setWindowIcon(QIcon(":/swipl.png"));
 
     qRegisterMetaType<pfunc>("pfunc");
@@ -131,10 +129,14 @@ void ConsoleEdit::setup(Swipl_IO* io) {
  */
 void ConsoleEdit::setup() {
 
+    set_editable(true);
     pqConsole::addConsole(this);
 
     status = idle;
     promptPosition = -1;
+
+    // added to handle reactive actions
+    parsedStart = 0; //parsedLimit = -1;
 
     qApp->installEventFilter(this);
     count_output = 0;
@@ -185,7 +187,9 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
 
     bool ctrl = event->modifiers() == CTRL;
     int cp = c.position(), k = event->key();
-    bool accept = true, ret = false, down = true, editable = cp >= fixedPosition;
+    qDebug() << cp << fixedPosition;
+
+    bool accept = true, ret = false, down = true, editable = (cp >= fixedPosition);
 
     QString cmd;
 
@@ -199,6 +203,11 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         accept = editable;
         break;
     case Key_Tab:
+        // there is a bug when QTextBrowser == ConsoleEditBase: trying to avoid discarding message
+        #if defined(PQCONSOLE_BROWSER)
+            event->ignore();
+            return;
+        #endif
         if (ctrl) {
             event->ignore(); // otherwise tab control get lost !
             return;
@@ -289,9 +298,9 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         if ((accept = editable) && ctrl)
         #endif
         {   qDebug() << "^D" << thids;
-	    c.movePosition(c.End);
+            c.movePosition(c.End);
             setTextCursor(c);
-	    ret = true;
+            ret = true;
             status = eof;
         }
         break;
@@ -489,28 +498,10 @@ void ConsoleEdit::user_output(QString text) {
     }
 
     auto instext = [&](QString text) {
-
-        int ltext;
-//#ifndef PQCONSOLE_HANDLE_HOOVERING
-#if 0
-        static QRegExp jmsg("(ERROR|Warning):[ \t]*(([a-zA-Z]:)?[^:]+):([0-9]+)(:([0-9]+))?.*", Qt::CaseSensitive, QRegExp::RegExp2);
-        if (jmsg.exactMatch(text)) {
-            QStringList parts = jmsg.capturedTexts();
-            //qDebug() << "file" << parts[2].trimmed() << "line" << parts[4].trimmed() << "char" << parts[6].trimmed();
-            auto edit = QString("'%1':%2").arg(parts[2].trimmed()).arg(parts[4].trimmed());
-            if (!parts[6].isEmpty())
-                edit += ":" + parts[6];
-            auto html = QString("<a style=\"jmsg\" href=\"system:edit(%1)\">%2</a><br>").arg(edit).arg(text);
-            //c.movePosition(c.StartOfLine);
-            c.insertHtml(html);
-            //c.movePosition(c.EndOfLine);
-        }
-        else
-#endif
-            c.insertText(text, output_text_fmt);
-
+        c.insertText(text, output_text_fmt);
+        // Jan requested extension: put messages *above* the prompt location
         if (status == wait_input) {
-            ltext = text.length();
+            int ltext = text.length();
             promptPosition += ltext;
             fixedPosition += ltext;
             ensureCursorVisible();
@@ -574,7 +565,7 @@ void ConsoleEdit::user_output(QString text) {
     else
         instext(text);
 
-        //QString x = text();
+    linkto_message_source();
 }
 
 bool ConsoleEdit::match_thread(int thread_id) const {
@@ -604,6 +595,56 @@ void ConsoleEdit::user_prompt(int threadId, bool tty) {
 
     if (commands.count() > 0)
         QTimer::singleShot(1, this, SLOT(command_do()));
+
+    linkto_message_source();
+}
+
+/** resolve error messages positions
+ *  but delay replacement after document' block scan
+ */
+void ConsoleEdit::linkto_message_source() {
+
+    auto c = textCursor();
+    struct to_replace_pos { int pos, len; QString html; };
+    QList<to_replace_pos> to_replace;
+
+    // scan blocks looking for error messages
+    for (QTextBlock block = c.document()->findBlockByNumber(parsedStart);
+         block.blockNumber() < c.document()->blockCount() - 1; block = block.next()) {
+         //block != c.document()->end(); block = block.next()) {
+
+        QString text = block.text();
+        ++parsedStart;
+
+        static QRegExp jmsg("(ERROR|Warning):[ \t]*(([a-zA-Z]:)?[^:]+):([0-9]+)(:([0-9]+))?.*", Qt::CaseSensitive, QRegExp::RegExp2);
+        if (jmsg.exactMatch(text)) {
+            QStringList parts = jmsg.capturedTexts();
+            QString path = parts[2].trimmed();
+            int opb = path.indexOf('['), clb;
+            if (opb >= 0 && (clb = path.indexOf(']', opb+1)) > opb)
+                path = path.mid(clb + 1).trimmed();
+
+            auto edit = QString("'%1':%2").arg(path).arg(parts[4].trimmed());
+            if (!parts[6].isEmpty())
+                edit += ":" + parts[6];
+
+            int pos = text.indexOf(path);
+            Q_ASSERT(pos > 0);
+
+            // make the source reference clickable
+            to_replace << to_replace_pos {
+                block.position() + pos, path.length(),
+                QString("<a href=\"system:edit(%1)\">%2</a>").arg(edit, path)};
+        }
+    }
+
+    // apply delayed replacement
+    foreach(auto b, to_replace) {
+        c.setPosition(b.pos);
+        c.setPosition(b.pos + b.len, c.KeepAnchor);
+        c.removeSelectedText();
+        c.insertHtml(b.html);
+    }
 }
 
 /** push command on queue
@@ -688,10 +729,10 @@ void ConsoleEdit::onCursorPositionChanged() {
     set_cursor_tip(c);
     if (fixedPosition > c.position()) {
         viewport()->setCursor(Qt::OpenHandCursor);
-        //setReadOnly(true);
+        set_editable(false);
         clickable_message_line(c, true);
     } else {
-        setReadOnly(false);
+        set_editable(true);
         viewport()->setCursor(Qt::IBeamCursor);
     }
 }

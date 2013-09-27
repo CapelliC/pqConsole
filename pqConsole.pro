@@ -13,7 +13,10 @@ TARGET = pqConsole
 TEMPLATE = lib
 
 DEFINES += PQCONSOLE_LIBRARY
-DEFINES += PQCONSOLE_BROWSER
+
+# moved where the class is defined
+# DEFINES += PQCONSOLE_BROWSER
+
 # prevent symbol/macro clashes with Qt
 DEFINES += PL_SAFE_ARG_MACROS
 

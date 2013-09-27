@@ -66,6 +66,9 @@ public:
     void loadGeometry(QString key, QWidget *w);
     void saveGeometry(QString key, QWidget *w);
 
+    void loadPosSizeState(QString key, QWidget *w);
+    void savePosSizeState(QString key, QWidget *w);
+
 signals:
     
 public slots:

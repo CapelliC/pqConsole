@@ -26,10 +26,14 @@
 #include <QEvent>
 #include <QCompleter>
 
+// make this definition available in client projects
+#define PQCONSOLE_BROWSER
+//#define PQCONSOLE_TEXTEDIT
+
 #if defined(PQCONSOLE_BROWSER)
     #include <QTextBrowser>
     typedef QTextBrowser ConsoleEditBase;
-#elif defined(PQCONSOLE_NO_HTML)
+#elif defined(PQCONSOLE_TEXTEDIT)
     #include <QTextEdit>
     typedef QTextEdit ConsoleEditBase;
 #else
@@ -227,6 +231,20 @@ protected:
 
     /** sense URL */
     virtual void setSource(const QUrl & name);
+
+    /** handle output reactively */
+    int parsedStart;
+
+    /** override QTextBrowser default, to get cursor working in output area */
+    inline void set_editable(bool allow) {
+        if (allow)
+            setTextInteractionFlags(Qt::TextEditorInteraction | Qt::TextBrowserInteraction);
+        else
+            setTextInteractionFlags((Qt::TextEditorInteraction | Qt::TextBrowserInteraction) & ~Qt::TextEditable);
+    }
+
+    /** replace references to source of error/warning with links */
+    void linkto_message_source();
 
 public slots:
 
