@@ -38,6 +38,7 @@ Preferences::Preferences(QObject *parent) :
     QSettings("SWI-Prolog", "pqConsole", parent)
 {
     console_font = value("console_font", QFont("courier", 12)).value<QFont>();
+
     wrapMode = static_cast<ConsoleEditBase::LineWrapMode>(value("wrapMode", ConsoleEditBase::WidgetWidth).toInt());
 
     console_out_fore = value("console_out_fore", 0).toInt();

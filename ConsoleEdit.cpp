@@ -187,7 +187,6 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
 
     bool ctrl = event->modifiers() == CTRL;
     int cp = c.position(), k = event->key();
-    qDebug() << cp << fixedPosition;
 
     bool accept = true, ret = false, down = true, editable = (cp >= fixedPosition);
 
@@ -369,6 +368,16 @@ void ConsoleEdit::mousePressEvent(QMouseEvent *e) {
     QTextCursor c = cursorForPosition(e->pos());
     clickable_message_line(c, false);
     ConsoleEditBase::mousePressEvent(e);
+
+    // still need to experiment if actually was QTextBrowser to inhibit the feature...
+#ifdef PQCONSOLE_BROWSER
+    if (e->button() == Qt::MiddleButton) {
+        if (QMimeData *d = createMimeDataFromSelection()) {
+            insertFromMimeData(d);
+            d->deleteLater();
+        }
+    }
+#endif
 }
 
 /** place accepted Completer selection in editor
