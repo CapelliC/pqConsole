@@ -90,7 +90,7 @@ ssize_t SwiPrologEngine::_read_(void *handle, char *buf, size_t bufsize) {
  */
 ssize_t SwiPrologEngine::_read_(char *buf, size_t bufsize) {
 
-    if ( buffer.isEmpty() )
+    if (buffer.isEmpty())
         emit user_prompt(PL_thread_self(), is_tty(this));
 
     for ( ; ; ) {
@@ -107,14 +107,14 @@ ssize_t SwiPrologEngine::_read_(char *buf, size_t bufsize) {
             if (n > 0) {
                 uint l = bufsize < n ? bufsize : n;
                 memcpy(buf, buffer, l);
-		buffer.remove(0, l);
+                buffer.remove(0, l);
                 return l;
             }
 
             if (target->status == ConsoleEdit::eof) {
-	        target->status = ConsoleEdit::running;
+                target->status = ConsoleEdit::running;
                 return 0;
-	    }
+            }
         }
 
         if (PL_handle_signals() < 0)
@@ -127,11 +127,15 @@ ssize_t SwiPrologEngine::_read_(char *buf, size_t bufsize) {
 /** async query interface served from same thread
  */
 void SwiPrologEngine::serve_query(query p) {
+
+    query1(call)
+
     Q_ASSERT(!p.is_script);
     QString n = p.name, t = p.text;
     try {
         if (n.isEmpty()) {
-            PlQuery q("call", PlTermv(PlCompound(t.toUtf8())));
+            //PlQuery q("call", PlTermv(PlCompound(t.toUtf8())));
+            call q(C(t.toUtf8()));
             //PlQuery q("call", PlTermv(PlCompound(t.toStdWString().data())));
             int occurrences = 0;
             while (q.next_solution())
@@ -139,7 +143,8 @@ void SwiPrologEngine::serve_query(query p) {
             emit query_complete(t, occurrences);
         }
         else {
-            PlQuery q(A(n), "call", PlTermv(PlCompound(t.toUtf8())));
+            //PlQuery q(A(n), "call", PlTermv(PlCompound(t.toUtf8())));
+            call q(C(t.toUtf8()));
             //PlQuery q(A(n), "call", PlTermv(PlCompound(t.toStdWString().data())));
             int occurrences = 0;
             while (q.next_solution())
@@ -189,7 +194,6 @@ int SwiPrologEngine::halt_engine(int status, void*data)
 
   return 0;
 }
-
 
 static IOFUNCTIONS pq_functions;
 
@@ -319,22 +323,45 @@ SwiPrologEngine::in_thread::~in_thread() {
     PL_thread_destroy_engine();
 }
 
+structure1(stream)
+structure1(silent)
+
+predicate2(atom_codes)
+predicate2(open_chars_stream)
+predicate2(load_files)
+predicate1(current_module)
+predicate1(close)
+
 /** run script <t>, named <n> in current thread
  */
-bool SwiPrologEngine::in_thread::named_load(QString n, QString t, bool silent) {
+bool SwiPrologEngine::in_thread::named_load(QString n, QString t, bool silent_yn) {
     try {
         PlTerm cs, s, opts;
+#if 1
+        if (    atom_codes(A(t), cs) &&
+                open_chars_stream(cs, s)) {
+            PlTail l(opts);
+            l.append(stream(s));
+            if (silent_yn)
+                l.append(silent(A("true")));
+            l.close();
+            bool rc = load_files(A(n), opts);
+            close(s);
+            return rc;
+        }
+#else
         if (    PlCall("atom_codes", PlTermv(A(t), cs)) &&
                 PlCall("open_chars_stream", PlTermv(cs, s))) {
             PlTail l(opts);
             l.append(PlCompound("stream", PlTermv(s)));
-            if (silent)
+            if (silent_yn)
                 l.append(PlCompound("silent", PlTermv(A("true"))));
             l.close();
-            bool rc = PlCall("load_files", PlTermv(A(n), opts));
-            PlCall("close", PlTermv(s));
+            bool rc = load_files(A(n), opts);
+            close(s);
             return rc;
         }
+#endif
     }
     catch(PlException ex) {
         qDebug() << t2w(ex);
@@ -347,7 +374,8 @@ bool SwiPrologEngine::in_thread::named_load(QString n, QString t, bool silent) {
 bool SwiPrologEngine::in_thread::inline_module(QString module, QString  code, bool silent) {
     //PlTerm v;
     //if (!PlCall("current_module", PlTermv(A(module), v))) {
-    if (!PlCall("current_module", PlTermv(A(module)))) {
+    //if (!PlCall("current_module", PlTermv(A(module)))) {
+    if (!current_module(A(module))) {
         qDebug() << "loading module snippet" << module;
         return named_load(module, code, silent);
     }
@@ -358,7 +386,8 @@ bool SwiPrologEngine::in_thread::inline_module(QString module, QString  code, bo
 /** if not yet loaded, parse module code from resource
  */
 bool SwiPrologEngine::in_thread::resource_module(QString module, QString location, bool silent) {
-    if (!PlCall("current_module", PlTermv(A(module)))) {
+    //if (!PlCall("current_module", PlTermv(A(module)))) {
+    if (!current_module(A(module))) {
         qDebug() << "loading resource_module" << module << "from" << location;
         QString path = location + "/" + module + ".pl";
         QFile file(path);

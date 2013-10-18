@@ -34,7 +34,8 @@ SOURCES += \
     Preferences.cpp \
     FlushOutputEvents.cpp \
     pqApplication.cpp \
-    win_builtins.cpp
+    win_builtins.cpp \
+    callable.cpp
 
 HEADERS += \
     pqConsole.h \
@@ -49,7 +50,8 @@ HEADERS += \
     Preferences.h \
     do_events.h \
     FlushOutputEvents.h \
-    pqApplication.h
+    pqApplication.h \
+    callable.h
 
 symbian {
     MMP_RULES += EXPORTUNFROZEN

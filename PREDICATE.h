@@ -49,6 +49,9 @@ inline QString t2w(PlTerm t) {
     return QString::fromWCharArray(WCP(t));
 }
 
+/** fast interface to get a string out of a ground term.
+  * thanks Jan !
+  */
 inline QString serialize(PlTerm t) {
     wchar_t *s;
 
@@ -66,6 +69,44 @@ typedef PlTail L;
 
 /** get back an object passed by pointer to Prolog */
 template<typename Obj> Obj* pq_cast(T ptr) { return static_cast<Obj*>(static_cast<void*>(ptr)); }
+
+/** structureN(name): named compound term construction.
+    For instance 'structure2(point)' enables
+   point(X,Y)
+    instead of
+   PlCompound("point", PlTermv(X,Y))
+ */
+#define structure1(X) inline PlCompound X(T A) { return PlCompound(#X, V(A)); }
+#define structure2(X) inline PlCompound X(T A, T B) { return PlCompound(#X, V(A, B)); }
+#define structure3(X) inline PlCompound X(T A, T B, T C) { return PlCompound(#X, V(A, B, C)); }
+#define structure4(X) inline PlCompound X(T A, T B, T C, T D) { return PlCompound(#X, V(A, B, C, D)); }
+#define structure5(X) inline PlCompound X(T A, T B, T C, T D, T E) { return PlCompound(#X, V(A, B, C, D, E)); }
+
+/** predicateN(name) : access Prolog predicate by name.
+    For instance predicate2(member) enables
+   if (member(X, Y))...
+    instead of
+   if (PlCall("member", PlTermv(X, Y))...
+ */
+#define predicate1(P) inline int P(T A) { return PlCall(#P, V(A)); }
+#define predicate2(P) inline int P(T A, T B) { return PlCall(#P, V(A, B)); }
+#define predicate3(P) inline int P(T A, T B, T C) { return PlCall(#P, V(A, B, C)); }
+#define predicate4(P) inline int P(T A, T B, T C, T D) { return PlCall(#P, V(A, B, C, D)); }
+#define predicate5(P) inline int P(T A, T B, T C, T D, T E) { return PlCall(#P, V(A, B, C, D, E)); }
+
+/** queryN(name) : multiple solution by name.
+    For instance 'query3(select)' enables
+   select s(X, Xs, Rs);
+   while (s.next_solution()) {}
+    instead of
+   PlQuery s("select", PlTermv(X, X, Rs));
+   while (s.next_solution()) {}
+ */
+#define query1(P) struct P : PlQuery { P(T A) : PlQuery(#P, V(A)) { } };
+#define query2(P) struct P : PlQuery { P(T A, T B) : PlQuery(#P, V(A, B)) { } };
+#define query3(P) struct P : PlQuery { P(T A, T B, T C) : PlQuery(#P, V(A, B, C)) { } };
+#define query4(P) struct P : PlQuery { P(T A, T B, T C, T D) : PlQuery(#P, V(A, B, C, D)) { } };
+#define query5(P) struct P : PlQuery { P(T A, T B, T C, T D, T E) : PlQuery(#P, V(A, B, C, D, E)) { } };
 
 #endif
 

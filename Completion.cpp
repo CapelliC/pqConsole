@@ -71,7 +71,7 @@ QString Completion::initialize(int promptPosition, QTextCursor c, QStringList &s
         rets = t2w(Delete);
     }
     catch(PlException e) {
-        qDebug() << CCP(e);
+        qDebug() << t2w(e);
     }
     catch(...) {
         qDebug() << "SIGV";
