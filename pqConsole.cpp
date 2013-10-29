@@ -462,3 +462,57 @@ PREDICATE0(paste) {
     }
     return FALSE;
 }
+
+//! collect all meta-instantiable Qt types
+PREDICATE(listq, 1) {
+    PlTail l(PL_A1);
+    for (int t = 0; t < (1 << 20); ++t)
+        if (QMetaType::isRegistered(t)) {
+            const char* n = QMetaType::typeName(t);
+            if (n && *n)
+                l.append(n);
+        }
+    l.close();
+    return TRUE;
+}
+
+//! create a meta-instantiable Qt object
+PREDICATE(newq, 2) {
+    ConsoleEdit* c = pqConsole::by_thread();
+    if (c) {
+        CCP name = PL_A1;
+        VP obj = 0;
+        c->exec_func([&](){
+        int id = QMetaType::type(name);
+        if (id != 0)
+            obj = QMetaType::construct(id);
+        });
+        if (obj)
+            return PL_A2 = obj;
+    }
+    return FALSE;
+}
+
+//! call void A2() on A1
+PREDICATE(invoke, 2) {
+    QObject *obj = pq_cast<QObject>(PL_A1);
+    if (obj) {
+        const QMetaObject *meta = obj->metaObject();
+        if (meta) {
+            int im = meta->indexOfMethod((t2w(PL_A2)+"()").toUtf8());
+            if (im != -1) {
+                QMetaMethod meth = meta->method(im);
+                auto pt = meth.parameterTypes();
+                if (pt.isEmpty()) {
+                    ConsoleEdit* c = pqConsole::by_thread();
+                    bool rc = false;
+                    if (c) {
+                        c->exec_func([&](){ rc = meth.invoke(obj); });
+                    }
+                    return rc;
+                }
+            }
+        }
+    }
+    throw PlException("invoke failed");
+}

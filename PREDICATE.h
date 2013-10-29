@@ -32,6 +32,10 @@
 typedef const char* CCP;
 typedef const wchar_t* WCP;
 typedef const void* CVP;
+
+typedef char* CP;
+typedef void* VP;
+
 #define CT QThread::currentThread()
 
 #include <QString>
@@ -72,9 +76,9 @@ template<typename Obj> Obj* pq_cast(T ptr) { return static_cast<Obj*>(static_cas
 
 /** structureN(name): named compound term construction.
     For instance 'structure2(point)' enables
-   point(X,Y)
+      point(X,Y)
     instead of
-   PlCompound("point", PlTermv(X,Y))
+      PlCompound("point", PlTermv(X,Y))
  */
 #define structure1(X) inline PlCompound X(T A) { return PlCompound(#X, V(A)); }
 #define structure2(X) inline PlCompound X(T A, T B) { return PlCompound(#X, V(A, B)); }
@@ -84,9 +88,9 @@ template<typename Obj> Obj* pq_cast(T ptr) { return static_cast<Obj*>(static_cas
 
 /** predicateN(name) : access Prolog predicate by name.
     For instance predicate2(member) enables
-   if (member(X, Y))...
+      if (member(X, Y))...
     instead of
-   if (PlCall("member", PlTermv(X, Y))...
+      if (PlCall("member", PlTermv(X, Y)))...
  */
 #define predicate1(P) inline int P(T A) { return PlCall(#P, V(A)); }
 #define predicate2(P) inline int P(T A, T B) { return PlCall(#P, V(A, B)); }
@@ -96,11 +100,11 @@ template<typename Obj> Obj* pq_cast(T ptr) { return static_cast<Obj*>(static_cas
 
 /** queryN(name) : multiple solution by name.
     For instance 'query3(select)' enables
-   select s(X, Xs, Rs);
-   while (s.next_solution()) {}
+      select s(X, Xs, Rs);
+      while (s.next_solution()) {}
     instead of
-   PlQuery s("select", PlTermv(X, X, Rs));
-   while (s.next_solution()) {}
+      PlQuery s("select", PlTermv(X, X, Rs));
+      while (s.next_solution()) {}
  */
 #define query1(P) struct P : PlQuery { P(T A) : PlQuery(#P, V(A)) { } };
 #define query2(P) struct P : PlQuery { P(T A, T B) : PlQuery(#P, V(A, B)) { } };

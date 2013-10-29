@@ -236,12 +236,7 @@ protected:
     int parsedStart;
 
     /** override QTextBrowser default, to get cursor working in output area */
-    inline void set_editable(bool allow) {
-        if (allow)
-            setTextInteractionFlags(Qt::TextEditorInteraction | Qt::TextBrowserInteraction);
-        else
-            setTextInteractionFlags((Qt::TextEditorInteraction | Qt::TextBrowserInteraction) & ~Qt::TextEditable);
-    }
+    void set_editable(bool allow);
 
     /** replace references to source of error/warning with links */
     void linkto_message_source();

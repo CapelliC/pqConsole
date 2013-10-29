@@ -165,6 +165,7 @@ void ConsoleEdit::setup() {
 void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
 
     using namespace Qt;
+    qDebug() << "keyPressEvent" << event;
 
     QTextCursor c = textCursor();
 
@@ -968,4 +969,13 @@ void ConsoleEdit::html_write(QString html) {
     auto c = textCursor();
     c.movePosition(c.End);
     c.insertHtml(html);
+}
+
+void ConsoleEdit::set_editable(bool allow) {
+    qDebug() << "set_editable" << allow << "before" << textInteractionFlags();
+    if (allow)
+        setTextInteractionFlags(Qt::TextEditorInteraction | Qt::TextBrowserInteraction);
+    else
+        setTextInteractionFlags((Qt::TextEditorInteraction | Qt::TextBrowserInteraction) & ~Qt::TextEditable);
+    qDebug() << "after" << textInteractionFlags();
 }
