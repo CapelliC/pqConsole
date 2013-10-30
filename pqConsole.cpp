@@ -464,7 +464,7 @@ PREDICATE0(paste) {
 }
 
 //! collect all meta-instantiable Qt types
-PREDICATE(listq, 1) {
+PREDICATE(list_objects_type, 1) {
     PlTail l(PL_A1);
     for (int t = 0; t < (1 << 20); ++t)
         if (QMetaType::isRegistered(t)) {
@@ -477,23 +477,25 @@ PREDICATE(listq, 1) {
 }
 
 //! create a meta-instantiable Qt object
-PREDICATE(newq, 2) {
+PREDICATE(create_object, 2) {
     ConsoleEdit* c = pqConsole::by_thread();
     if (c) {
-        CCP name = PL_A1;
         VP obj = 0;
-        c->exec_func([&](){
-        int id = QMetaType::type(name);
-        if (id != 0)
-            obj = QMetaType::construct(id);
+        QString name = t2w(PL_A1);
+        ConsoleEdit::exec_sync s;
+        c->exec_func([&]() {
+            if (int id = QMetaType::type(name.toUtf8()))
+                obj = QMetaType::construct(id);
+            s.go();
         });
+        s.stop();
         if (obj)
             return PL_A2 = obj;
     }
-    return FALSE;
+    throw PlException("newq failed");
 }
 
-//! call void A2() on A1
+//! call a void func(), named A2, on instantiated object A1
 PREDICATE(invoke, 2) {
     QObject *obj = pq_cast<QObject>(PL_A1);
     if (obj) {
@@ -507,7 +509,12 @@ PREDICATE(invoke, 2) {
                     ConsoleEdit* c = pqConsole::by_thread();
                     bool rc = false;
                     if (c) {
-                        c->exec_func([&](){ rc = meth.invoke(obj); });
+                        ConsoleEdit::exec_sync s;
+                        c->exec_func([&]() {
+                            rc = meth.invoke(obj);
+                            s.go();
+                        });
+                        s.stop();
                     }
                     return rc;
                 }
