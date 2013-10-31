@@ -73,6 +73,9 @@ public:
     /** unify a property of QObject, seek by name */
     static QString unify(const char* name, QObject *o, PlTerm v);
 
+    /** run in GUI thread */
+    static void gui_run(pfunc f);
+
 private:
     static QList<ConsoleEdit*> consoles;
     static QMutex consoles_sync;

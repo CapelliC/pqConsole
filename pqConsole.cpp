@@ -225,6 +225,18 @@ QString pqConsole::unify(CCP name, QObject *o, PlTerm v) {
     return o->tr("property %1: not found").arg(name);
 }
 
+/** rendez vous in GUI thread, syncronized
+ */
+void pqConsole::gui_run(pfunc f) {
+    Q_ASSERT(!consoles.isEmpty());
+    ConsoleEdit::exec_sync s;
+    peek_first()->exec_func([&]() {
+        f();
+        s.go();
+    });
+    s.stop();
+}
+
 /** append new command to history list for current console
  */
 PREDICATE(rl_add_history, 1) {
@@ -461,65 +473,4 @@ PREDICATE0(paste) {
         return TRUE;
     }
     return FALSE;
-}
-
-//! collect all meta-instantiable Qt types
-PREDICATE(list_objects_type, 1) {
-    PlTail l(PL_A1);
-    for (int t = 0; t < (1 << 20); ++t)
-        if (QMetaType::isRegistered(t)) {
-            const char* n = QMetaType::typeName(t);
-            if (n && *n)
-                l.append(n);
-        }
-    l.close();
-    return TRUE;
-}
-
-//! create a meta-instantiable Qt object
-PREDICATE(create_object, 2) {
-    ConsoleEdit* c = pqConsole::by_thread();
-    if (c) {
-        VP obj = 0;
-        QString name = t2w(PL_A1);
-        ConsoleEdit::exec_sync s;
-        c->exec_func([&]() {
-            if (int id = QMetaType::type(name.toUtf8()))
-                obj = QMetaType::construct(id);
-            s.go();
-        });
-        s.stop();
-        if (obj)
-            return PL_A2 = obj;
-    }
-    throw PlException("newq failed");
-}
-
-//! call a void func(), named A2, on instantiated object A1
-PREDICATE(invoke, 2) {
-    QObject *obj = pq_cast<QObject>(PL_A1);
-    if (obj) {
-        const QMetaObject *meta = obj->metaObject();
-        if (meta) {
-            int im = meta->indexOfMethod((t2w(PL_A2)+"()").toUtf8());
-            if (im != -1) {
-                QMetaMethod meth = meta->method(im);
-                auto pt = meth.parameterTypes();
-                if (pt.isEmpty()) {
-                    ConsoleEdit* c = pqConsole::by_thread();
-                    bool rc = false;
-                    if (c) {
-                        ConsoleEdit::exec_sync s;
-                        c->exec_func([&]() {
-                            rc = meth.invoke(obj);
-                            s.go();
-                        });
-                        s.stop();
-                    }
-                    return rc;
-                }
-            }
-        }
-    }
-    throw PlException("invoke failed");
 }

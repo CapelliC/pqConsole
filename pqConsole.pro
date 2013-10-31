@@ -35,7 +35,8 @@ SOURCES += \
     FlushOutputEvents.cpp \
     pqApplication.cpp \
     win_builtins.cpp \
-    callable.cpp
+    callable.cpp \
+    reflexive.cpp
 
 HEADERS += \
     pqConsole.h \
