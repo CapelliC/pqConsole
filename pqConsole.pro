@@ -36,7 +36,8 @@ SOURCES += \
     pqApplication.cpp \
     win_builtins.cpp \
     callable.cpp \
-    reflexive.cpp
+    reflexive.cpp \
+    ParenMatching.cpp
 
 HEADERS += \
     pqConsole.h \
@@ -52,7 +53,8 @@ HEADERS += \
     do_events.h \
     FlushOutputEvents.h \
     pqApplication.h \
-    callable.h
+    callable.h \
+    ParenMatching.h
 
 symbian {
     MMP_RULES += EXPORTUNFROZEN

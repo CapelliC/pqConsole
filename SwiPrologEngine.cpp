@@ -311,6 +311,10 @@ SwiPrologEngine::in_thread::in_thread()
 
     // CC: aliasing should have a *different* name for different threads...
     //attr.alias = (char*)"__gui";
+    QByteArray alias;
+    QTextStream(&alias) << "_gt_" << QThread::currentThreadId();
+    attr.alias = alias.data();
+
     qDebug() << "in_thread:PL_thread_attach_engine" << CT;
 
     int id = PL_thread_attach_engine(&attr);

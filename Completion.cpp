@@ -46,7 +46,7 @@ struct arith : Bin { arith(T Pred, T Num) : Bin("/", Pred, Num) {} };
  */
 QString Completion::initialize(int promptPosition, QTextCursor c, QStringList &strings) {
 
-    SwiPrologEngine::in_thread _int;
+    //SwiPrologEngine::in_thread _int;
     QString rets;
 
     try {
@@ -55,26 +55,28 @@ QString Completion::initialize(int promptPosition, QTextCursor c, QStringList &s
 
         c.setPosition(promptPosition, c.KeepAnchor);
         QString left = c.selectedText();
-        PlString Before(left.toStdWString().data());
+        if (left.length()) {
+            PlString Before(left.toStdWString().data());
 
-        c.setPosition(p);
-        c.movePosition(c.EndOfLine, c.KeepAnchor);
-        QString after = c.selectedText();
-        PlString After(after.toStdWString().data());
+            c.setPosition(p);
+            c.movePosition(c.EndOfLine, c.KeepAnchor);
+            QString after = c.selectedText();
+            PlString After(after.toStdWString().data());
 
-        PlTerm Completions, Delete, word;
-        if (PlCall("prolog", "complete_input", PlTermv(Before, After, Delete, Completions)))
-            for (PlTail l(Completions); l.next(word); )
-                strings.append(t2w(word));
+            PlTerm Completions, Delete, word;
+            if (PlCall("prolog", "complete_input", PlTermv(Before, After, Delete, Completions)))
+                for (PlTail l(Completions); l.next(word); )
+                    strings.append(t2w(word));
 
-        c.setPosition(p);
-        rets = t2w(Delete);
+            c.setPosition(p);
+            rets = t2w(Delete);
+        }
     }
     catch(PlException e) {
         qDebug() << t2w(e);
     }
     catch(...) {
-        qDebug() << "SIGV";
+        qDebug() << "...";
     }
 
     return rets;

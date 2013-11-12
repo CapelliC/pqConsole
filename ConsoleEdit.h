@@ -43,6 +43,7 @@
 
 #include "SwiPrologEngine.h"
 #include "Completion.h"
+#include "ParenMatching.h"
 
 class Swipl_IO;
 
@@ -240,6 +241,11 @@ protected:
 
     /** replace references to source of error/warning with links */
     void linkto_message_source();
+
+protected:
+
+    /** keep last matched pair */
+    ParenMatching::range pmatched;
 
 public slots:
 

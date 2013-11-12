@@ -76,6 +76,9 @@ public:
     /** run in GUI thread */
     static void gui_run(pfunc f);
 
+    /** saving history lines on exit is messed by PL_halt...*/
+    static QStringList last_history_lines;
+
 private:
     static QList<ConsoleEdit*> consoles;
     static QMutex consoles_sync;

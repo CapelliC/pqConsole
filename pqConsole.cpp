@@ -129,106 +129,13 @@ ConsoleEdit *pqConsole::by_thread() {
  */
 ConsoleEdit *pqConsole::peek_first() {
     QMutexLocker l(&consoles_sync);
-    return consoles.isEmpty() ? 0 : consoles[0];
-}
-
-/** unify a property of QObject:
- *  allows read/write of simple atomic values
- */
-QString pqConsole::unify(const QMetaProperty& p, QObject *o, PlTerm v) {
-
-    #define OK return QString()
-
-    switch (v.type()) {
-
-    case PL_VARIABLE:
-        switch (p.type()) {
-        case QVariant::Bool:
-            v = p.read(o).toBool() ? A("true") : A("false");
-            OK;
-        case QVariant::Int:
-            if (p.isEnumType()) {
-                Q_ASSERT(!p.isFlagType());  // TBD
-                QMetaEnum e = p.enumerator();
-                if (CCP key = e.valueToKey(p.read(o).toInt())) {
-                    v = A(key);
-                    OK;
-                }
-            }
-            v = long(p.read(o).toInt());
-            OK;
-        case QVariant::UInt:
-            v = long(p.read(o).toUInt());
-            OK;
-        case QVariant::String:
-            v = A(p.read(o).toString());
-            OK;
-        default:
-            break;
-        }
-        break;
-
-    case PL_INTEGER:
-        switch (p.type()) {
-        case QVariant::Int:
-        case QVariant::UInt:
-            if (p.write(o, qint32(v)))
-                OK;
-        default:
-            break;
-        }
-        break;
-
-    case PL_ATOM:
-        switch (p.type()) {
-        case QVariant::String:
-            if (p.write(o, t2w(v)))
-                OK;
-        case QVariant::Int:
-            if (p.isEnumType()) {
-                Q_ASSERT(!p.isFlagType());  // TBD
-                int i = p.enumerator().keyToValue(v);
-                if (i != -1) {
-                    p.write(o, i);
-                    OK;
-                }
-            }
-        default:
-            break;
-        }
-        break;
-
-    case PL_FLOAT:
-        switch (p.type()) {
-        case QVariant::Double:
-            if (p.write(o, double(v)))
-                OK;
-        default:
-            break;
-        }
-        break;
-
-    default:
-        break;
-    }
-
-    return o->tr("property %1: type mismatch").arg(p.name());
-}
-
-/** unify a property of QObject, seek by name:
- *  allows read/write of basic atomic values (note: enums are symbolics)
- */
-QString pqConsole::unify(CCP name, QObject *o, PlTerm v) {
-    int pid = o->metaObject()->indexOfProperty(name);
-    if (pid >= 0)
-        return unify(o->metaObject()->property(pid), o, v);
-    return o->tr("property %1: not found").arg(name);
+    Q_ASSERT(!consoles.isEmpty());
+    return consoles[0];
 }
 
 /** rendez vous in GUI thread, syncronized
  */
 void pqConsole::gui_run(pfunc f) {
-    Q_ASSERT(!consoles.isEmpty());
     ConsoleEdit::exec_sync s;
     peek_first()->exec_func([&]() {
         f();
@@ -259,7 +166,10 @@ PREDICATE(rl_read_init_file, 1) {
 
 /** get history lines for this console
  */
+QStringList pqConsole::last_history_lines;
+
 NAMED_PREDICATE("$rl_history", rl_history, 1) {
+    /*
     ConsoleEdit* c = pqConsole::by_thread();
     if (c) {
         PlTail lines(PL_A1);
@@ -268,7 +178,12 @@ NAMED_PREDICATE("$rl_history", rl_history, 1) {
         lines.close();
         return TRUE;
     }
-    return FALSE;
+    */
+    PlTail lines(PL_A1);
+    foreach(QString x, pqConsole::last_history_lines)
+        lines.append(W(x));
+    lines.close();
+    return TRUE;
 }
 
 /** attempt to overcome default tty_size/2
@@ -313,6 +228,9 @@ PREDICATE0(interrupt) {
  *
  *  Qt - lineWrapMode(Mode) Mode --> 'NoWrap' | 'WidgetWidth'
  *     - when NoWrap, an horizontal scroll bar could display
+ *
+ *  Qt - tabStopWidth(W)
+ *     - change spacing (character should be monospace, fixed pitch)
  */
 PREDICATE(console_settings, 1) {
     ConsoleEdit* c = pqConsole::by_thread();
