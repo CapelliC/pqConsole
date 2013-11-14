@@ -868,7 +868,7 @@ void ConsoleEdit::onConsoleMenuActionMap(const QString& action) {
  */
 void ConsoleEdit::tty_clear() {
     clear();
-    fixedPosition = promptPosition = 0;
+    fixedPosition = promptPosition = parsedStart = 0;
 }
 
 /** issue instancing in GUI thread (cant moveToThread a Widget)

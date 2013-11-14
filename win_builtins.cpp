@@ -244,7 +244,7 @@ PREDICATE(win_insert_menu_item, 4) {
  */
 PREDICATE0(tty_clear) {
     if (ConsoleEdit* c = pqConsole::by_thread()) {
-        c->tty_clear();
+        pqConsole::gui_run([&]() { c->tty_clear(); });
         return TRUE;
     }
     return FALSE;
