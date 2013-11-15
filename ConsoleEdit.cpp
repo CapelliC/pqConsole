@@ -160,6 +160,7 @@ void ConsoleEdit::setup() {
     connect(this, SIGNAL(cursorPositionChanged()), this, SLOT(onCursorPositionChanged()));
 
     connect(this, SIGNAL(sig_run_function(pfunc)), this, SLOT(run_function(pfunc)));
+    connect(this, SIGNAL(selectionChanged()), this, SLOT(selectionChanged()));
 }
 
 /** strict control on keyboard events required
@@ -1009,4 +1010,29 @@ void ConsoleEdit::set_editable(bool allow) {
     else
         setTextInteractionFlags((Qt::TextEditorInteraction | Qt::TextBrowserInteraction) & ~Qt::TextEditable);
     qDebug() << "after" << textInteractionFlags();
+}
+
+void ConsoleEdit::selectionChanged()
+{
+    QTextCursor c = textCursor();
+    if (c.hasSelection()) {
+        QString csel = c.selectedText();
+        c.movePosition(c.Start);
+        QList<ExtraSelection> lsel;
+        QTextCharFormat bold = ParenMatching::range::bold();
+        for ( ; ; ) {
+            c = document()->find(csel, c);
+            if (c.isNull())
+                break;
+            lsel.append(ExtraSelection {c, bold});
+            c.setCharFormat(bold);
+        }
+        setExtraSelections(lsel);
+    }
+    else {
+        QTextCharFormat clear = QTextCharFormat();
+        foreach (ExtraSelection s, extraSelections())
+            s.cursor.setCharFormat(clear);
+        extraSelections().clear();
+    }
 }
