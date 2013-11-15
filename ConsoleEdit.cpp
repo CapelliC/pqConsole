@@ -317,7 +317,28 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         // fall throu
 
     default:
+
         accept = editable || event->matches(QKeySequence::Copy);
+
+        // when keypressed in output area place at cursor and accept
+        if (!accept && !editable && !ret) {
+            c.movePosition(c.End);
+            setTextCursor(c);
+            ensureCursorVisible();
+
+            if (fixedPosition > c.position())
+                fixedPosition = c.position();
+
+            setCurrentCharFormat(input_text_fmt);
+            ConsoleEditBase::keyPressEvent(event);
+
+            if (is_tty) {
+                cmd = event->text();
+                if (!cmd.isEmpty())
+                    goto _cmd_;
+            }
+            return;
+        }
     }
 
     if (accept) {
@@ -337,7 +358,6 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
             preds->popup()->setCurrentIndex(preds->completionModel()->index(0, 0));
         }
         else {
-
             // handle ^A+Del (clear buffer)
             c.movePosition(c.End);
             if (fixedPosition > c.position())
