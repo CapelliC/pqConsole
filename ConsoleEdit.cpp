@@ -322,7 +322,8 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         accept = editable || event->matches(QKeySequence::Copy);
 
         // when keypressed in output area place at cursor and accept
-        if (!accept && !editable && !ret) {
+        if (!accept && !editable && !ret && !event->modifiers()) {
+                //!event->modifiers() == CTRL && !event->modifiers() == ALT && !event->modifiers() == SHIFT && !event->modifiers() == META) {
             c.movePosition(c.End);
             setTextCursor(c);
             ensureCursorVisible();
