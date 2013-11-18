@@ -32,6 +32,7 @@
 #include "ConsoleEdit.h"
 #include "Preferences.h"
 #include "pqMainWindow.h"
+#include "plMiniSyntax.h"
 
 #include <QTime>
 #include <QStack>
@@ -55,6 +56,26 @@ int pqConsole::runDemo(int argc, char *argv[]) {
     QApplication a(argc, argv);
     pqMainWindow w(argc, argv);
     w.show();
+    return a.exec();
+}
+
+/** open Prolog script with mini syntax support
+ */
+int pqConsole::showMiniSyntax(int argc, char *argv[]) {
+    QApplication a(argc, argv);
+    pqMainWindow w(argc, argv);
+    w.show();
+
+    if (argc >= 2) {
+        QFile f(argv[1]);
+        if (f.open(f.ReadOnly)) {
+            QTextEdit *ed = new QTextEdit();
+            ed->setText(QTextStream(&f).readAll());
+            new plMiniSyntax(ed);
+            ed->show();
+        }
+    }
+
     return a.exec();
 }
 

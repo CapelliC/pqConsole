@@ -50,6 +50,9 @@ public:
     /*! Run a vanilla QMainWindow displaying SWI-Prolog console */
     int runDemo(int argc, char *argv[]);
 
+    /** open Prolog script with mini syntax support */
+    int showMiniSyntax(int argc, char *argv[]);
+
 #if 0
     /** depth first search of widgets hierarchy, from application topLevelWidgets */
     static QWidget *search_widget(std::function<bool(QWidget* w)> match);
