@@ -209,11 +209,6 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         accept = editable;
         break;
     case Key_Tab:
-        // there is a bug when QTextBrowser == ConsoleEditBase: trying to avoid discarding message
-        #if defined(PQCONSOLE_BROWSER)
-            event->ignore();
-            return;
-        #endif
         if (ctrl) {
             event->ignore(); // otherwise tab control get lost !
             return;
@@ -251,7 +246,7 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         break;
 
     case Key_Backspace:
-	accept = (cp > fixedPosition);
+    accept = (cp > fixedPosition);
         break;
 
     case Key_Up:
@@ -385,8 +380,8 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         else
             emit user_input(cmd);
 
-	if ( status != eof || !cmd.isEmpty() )
-	    status = running;
+    if ( status != eof || !cmd.isEmpty() )
+        status = running;
     }
 }
 
@@ -710,6 +705,19 @@ void ConsoleEdit::command_do() {
 /** handle tooltip from helpidx to display current cursor word synopsis
  */
 bool ConsoleEdit::event(QEvent *event) {
+
+#if defined(PQCONSOLE_BROWSER)
+    // there is a bug when QTextBrowser == ConsoleEditBase: trying to avoid discarding message
+    if (event->type() == QEvent::KeyPress) {
+        QKeyEvent *k = static_cast<QKeyEvent*>(event);
+        if (k->key() == Qt::Key_Tab) {
+            qDebug() << "ignore" << event->type();
+            event->ignore();
+            return true;
+        }
+    }
+#endif
+
     if (event->type() == QEvent::ToolTip) {
         QHelpEvent *helpEvent = static_cast<QHelpEvent*>(event);
         if (!last_tip.isEmpty())
@@ -804,28 +812,28 @@ void ConsoleEdit::clickable_message_line(QTextCursor c, bool highlight) {
 
     QString line = c.selectedText();
     static QRegExp msg("(ERROR|Warning):[ \t]*(([a-zA-Z]:)?[^:]+):([0-9]+)(:([0-9]+))?.*",
-		       Qt::CaseSensitive, QRegExp::RegExp2);
+               Qt::CaseSensitive, QRegExp::RegExp2);
     if ( msg.exactMatch(line) ) {
         QStringList parts = msg.capturedTexts();
      // qDebug() << "file" << parts[2] << "line" << parts[4] << "char" << parts[6];
 
-	if ( highlight ) {
-	    if (cposition != cposition_) {
-	        cposition = cposition_;
-		fposition = fposition_;
-		QTextCharFormat f = fposition_;
-		f.setFontUnderline(true);
-		c.setCharFormat(f);
-	    }
-	    return;
-	} else {
-	    auto cmd = QString("edit('"+parts[2]+"':"+parts[4]);
-	    if ( !parts[6].isEmpty() )
-	        cmd += ":"+parts[6];
-	    cmd += ")";
-	    qDebug() << cmd;
-	    query_run(cmd);
-	}
+    if ( highlight ) {
+        if (cposition != cposition_) {
+            cposition = cposition_;
+        fposition = fposition_;
+        QTextCharFormat f = fposition_;
+        f.setFontUnderline(true);
+        c.setCharFormat(f);
+        }
+        return;
+    } else {
+        auto cmd = QString("edit('"+parts[2]+"':"+parts[4]);
+        if ( !parts[6].isEmpty() )
+            cmd += ":"+parts[6];
+        cmd += ")";
+        qDebug() << cmd;
+        query_run(cmd);
+    }
     }
 
     if (fposition != QTextCharFormat()) {
