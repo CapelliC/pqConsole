@@ -608,7 +608,9 @@ bool ConsoleEdit::match_thread(int thread_id) const {
  */
 void ConsoleEdit::user_prompt(int threadId, bool tty) {
 
-    Q_ASSERT(thids.contains(threadId));
+    // attach thread IO to this console
+    if (!thids.contains(threadId))
+        thids.append(threadId);
 
     is_tty = tty;
 

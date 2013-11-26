@@ -35,7 +35,7 @@
 #include <QPixmap>
 
 //! collect all registered Qt types
-PREDICATE(list_objects_type, 1) {
+PREDICATE(types, 1) {
     PlTail l(PL_A1);
     for (int t = 0; t < (1 << 20); ++t)
         if (QMetaType::isRegistered(t)) {
@@ -47,16 +47,19 @@ PREDICATE(list_objects_type, 1) {
     return TRUE;
 }
 
+structure2(pqObj)
+
 //! create a meta-instantiable Qt object
-PREDICATE(create_object, 2) {
+PREDICATE(create, 2) {
     VP obj = 0;
     QString name = t2w(PL_A1);
-    pqConsole::gui_run([&](){
-       if (int id = QMetaType::type(name.toUtf8()))
-           obj = QMetaType::construct(id);  // calls default constructor here
-    });
+    long type = QMetaType::type(name.toUtf8());
+    if (type)
+        pqConsole::gui_run([&](){
+           obj = QMetaType::construct(type);  // calls default constructor here
+        });
     if (obj)
-        return PL_A2 = obj;
+        return PL_A2 = pqObj(type, obj);
     throw PlException("create_object failed");
 }
 
@@ -141,11 +144,13 @@ static QVariant T2V(PlTerm pl)
     throw PlException("cannot convert PlTerm to QVariant");
 }
 
-/** pq_method(Object, Member, Args, Retv)
+/** invoke(Object, Member, Args, Retv)
  *  note: pointers should be registered to safely exchange them
  */
-PREDICATE(pq_method, 4) {
-    QObject *obj = pq_cast<QObject>(PL_A1);
+PREDICATE(invoke, 4) {
+    T ttype, tptr;
+    PL_A1 = pqObj(ttype, tptr);
+    QObject *obj = pq_cast<QObject>(tptr);
     if (obj) {
         QString Member = t2w(PL_A2);
         // iterate superClasses
@@ -213,29 +218,46 @@ PREDICATE(pq_method, 4) {
                             throw PlException("unsupported call (max 3 arguments)");
 
                         // optional return value
-                        QGenericReturnArgument rv;
                         int trv = QMetaType::type(m.typeName());
+                        QVariant rv(trv, static_cast<void*>(NULL));
+                        QGenericReturnArgument ra(m.typeName(), rv.data());
 
                         bool rc = false;
                         pqConsole::gui_run([&]() {
                             switch (m.parameterTypes().size()) {
                             case 0:
-                                rc = trv ? m.invoke(obj, rv) : m.invoke(obj);
+                                rc = trv ? m.invoke(obj, ra) : m.invoke(obj);
                                 break;
                             case 1:
-                                rc = trv ? m.invoke(obj, rv, va[0]) : m.invoke(obj, va[0]);
+                                rc = trv ? m.invoke(obj, ra, va[0]) : m.invoke(obj, va[0]);
                                 break;
                             case 2:
-                                rc = trv ? m.invoke(obj, rv, va[0], va[1]) : m.invoke(obj, va[0], va[1]);
+                                rc = trv ? m.invoke(obj, ra, va[0], va[1]) : m.invoke(obj, va[0], va[1]);
                                 break;
                             case 3:
-                                rc = trv ? m.invoke(obj, rv, va[0], va[1], va[2]) : m.invoke(obj, va[0], va[1], va[2]);
+                                rc = trv ? m.invoke(obj, ra, va[0], va[1], va[2]) : m.invoke(obj, va[0], va[1], va[2]);
                                 break;
                             }
                         });
 
                         if (rc && trv) {
                             // TBD unify return value
+                            switch (trv) {
+                            case QMetaType::Int:
+                                PL_A4 = rv.toInt();
+                                break;
+                            case QMetaType::UInt:
+                                PL_A4 = static_cast<int>(rv.toUInt());
+                                break;
+                            case QMetaType::LongLong:
+                                PL_A4 = static_cast<int>(rv.toLongLong());
+                                break;
+                            case QMetaType::ULongLong:
+                                PL_A4 = static_cast<int>(rv.toULongLong());
+                                break;
+                            default:
+                                throw PlException("unsupported return type");
+                            }
                         }
 
                         return rc;
@@ -250,8 +272,10 @@ PREDICATE(pq_method, 4) {
 /** pq_property(Object, Property, Value)
  *  read/write a property by name
  */
-PREDICATE(pq_property, 3) {
-    QObject *obj = pq_cast<QObject>(PL_A1);
+PREDICATE(property, 3) {
+    T ttype, tptr;
+    PL_A1 = pqObj(ttype, tptr);
+    QObject *obj = pq_cast<QObject>(tptr);
     if (obj) {
         // from actual class up to QObject
         for (const QMetaObject *meta = obj->metaObject(); meta; meta = meta->superClass()) {

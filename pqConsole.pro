@@ -35,7 +35,6 @@ SOURCES += \
     FlushOutputEvents.cpp \
     pqApplication.cpp \
     win_builtins.cpp \
-    callable.cpp \
     reflexive.cpp \
     ParenMatching.cpp \
     plMiniSyntax.cpp
@@ -54,7 +53,6 @@ HEADERS += \
     do_events.h \
     FlushOutputEvents.h \
     pqApplication.h \
-    callable.h \
     ParenMatching.h \
     plMiniSyntax.h
 
