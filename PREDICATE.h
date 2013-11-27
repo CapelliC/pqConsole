@@ -71,6 +71,13 @@ typedef PlTermv V;
 typedef PlCompound C;
 typedef PlTail L;
 
+inline PlTerm empty_list() {
+    PlTerm el;
+    PlTail EL(el);
+    EL.close();
+    return el;
+}
+
 /** get back an object passed by pointer to Prolog */
 template<typename Obj> Obj* pq_cast(T ptr) { return static_cast<Obj*>(static_cast<void*>(ptr)); }
 
