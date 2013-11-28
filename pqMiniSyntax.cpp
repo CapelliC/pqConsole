@@ -20,7 +20,7 @@
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "plMiniSyntax.h"
+#include "pqMiniSyntax.h"
 #include "do_events.h"
 #include <QTextDocument>
 #include <QDebug>
@@ -31,27 +31,31 @@
   * Just a quick alternative to properly interfacing SWI-Prolog goodies,
   * that proved much more difficult to do rightly than I foreseen
   */
-void plMiniSyntax::setup() {
+void pqMiniSyntax::setup() {
     QString number("\\d+(?:\\.\\d+)?");
     QString symbol("[a-z][A-Za-z0-9_]*");
     QString var("[A-Z_][A-Za-z0-9_]*");
     QString quoted("\"[^\"]*\"");
+    QString atomq("'[^\'']*'");
+    QString charcode("0'.|0'\\t|0'\\n|0'\\r|0'\\u[0-9][0-9][0-9][0-9]");
     QString oper("[\\+\\-\\*\\/\\=\\^<>~:\\.,;\\?@#$\\\\&{}`]+");
 
-    tokens = QRegExp(QString("(%1)|(%2)|(%3)|(%4)|(%5)|%").arg(number, symbol, var, quoted, oper));
+    tokens = QRegExp(QString("(%1)|(%2)|(%3)|(%4)|(%5)|(%6)|(%7)|%").arg(number, symbol, var, quoted, atomq, charcode, oper));
 
     fmt[Comment].setForeground(Qt::darkGreen);
     fmt[Number].setForeground(QColor("blueviolet"));
     fmt[Atom].setForeground(Qt::blue);
+    fmt[Atomq].setForeground(Qt::blue);
     fmt[String].setForeground(Qt::magenta);
     fmt[Variable].setForeground(QColor("brown"));
     fmt[Operator].setFontWeight(QFont::Bold);
+    fmt[CharCode].setForeground(Qt::darkCyan);
     fmt[Unknown].setForeground(Qt::darkRed);
 }
 
 /** handle nested comments and simple minded Prolog syntax
   */
-void plMiniSyntax::highlightBlock(const QString &text)
+void pqMiniSyntax::highlightBlock(const QString &text)
 {
     // simple state machine
     int nb = currentBlock().blockNumber();
@@ -92,6 +96,10 @@ void plMiniSyntax::highlightBlock(const QString &text)
                 } else if ((l = ml[4].length())) {  // quoted
                     setFormat(j, l, fmt[String]);
                 } else if ((l = ml[5].length())) {  // operator
+                    setFormat(j, l, fmt[Atomq]);
+                } else if ((l = ml[6].length())) {  // operator
+                    setFormat(j, l, fmt[CharCode]);
+                } else if ((l = ml[7].length())) {  // operator
                     setFormat(j, l, fmt[Operator]);
                 } else {                            // single line comment
                     setFormat(j, text.length() - i, fmt[Comment]);

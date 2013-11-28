@@ -32,7 +32,7 @@
 #include "ConsoleEdit.h"
 #include "Preferences.h"
 #include "pqMainWindow.h"
-#include "plMiniSyntax.h"
+#include "pqMiniSyntax.h"
 
 #include <QTime>
 #include <QStack>
@@ -71,7 +71,7 @@ int pqConsole::showMiniSyntax(int argc, char *argv[]) {
         if (f.open(f.ReadOnly)) {
             QTextEdit *ed = new QTextEdit();
             ed->setText(QTextStream(&f).readAll());
-            new plMiniSyntax(ed);
+            new pqMiniSyntax(ed);
             ed->show();
         }
     }

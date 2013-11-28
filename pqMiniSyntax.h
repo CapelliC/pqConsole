@@ -20,27 +20,27 @@
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef PLMINISYNTAX_H
-#define PLMINISYNTAX_H
+#ifndef PQMINISYNTAX_H
+#define PQMINISYNTAX_H
 
 #include "pqConsole_global.h"
 #include <QSyntaxHighlighter>
 #include <QRegExp>
 #include <QElapsedTimer>
 
-class PQCONSOLESHARED_EXPORT plMiniSyntax : public QSyntaxHighlighter
+class PQCONSOLESHARED_EXPORT pqMiniSyntax : public QSyntaxHighlighter
 {
     Q_OBJECT
 public:
 
-    plMiniSyntax(QObject *parent = 0) : QSyntaxHighlighter(parent) { setup(); }
-    plMiniSyntax(QTextDocument *parent) : QSyntaxHighlighter(parent) { setup(); }
-    plMiniSyntax(QTextEdit *parent)  : QSyntaxHighlighter(parent) { setup(); }
+    pqMiniSyntax(QObject *parent = 0) : QSyntaxHighlighter(parent) { setup(); }
+    pqMiniSyntax(QTextDocument *parent) : QSyntaxHighlighter(parent) { setup(); }
+    pqMiniSyntax(QTextEdit *parent)  : QSyntaxHighlighter(parent) { setup(); }
 
 signals:
-    
+
 public slots:
-    
+
 protected:
 
     // handle state tracking using BlockUserData
@@ -51,10 +51,12 @@ private:
     enum token_name {
         Comment,
         Atom,
+        Atomq,
         String,
         Variable,
         Number,
         Operator,
+        CharCode,
         Unknown
     };
     QTextCharFormat fmt[Unknown+1];
