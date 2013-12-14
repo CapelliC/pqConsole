@@ -246,7 +246,7 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         break;
 
     case Key_Backspace:
-    accept = (cp > fixedPosition);
+        accept = (cp > fixedPosition);
         break;
 
     case Key_Up:
@@ -1018,12 +1018,12 @@ void ConsoleEdit::html_write(QString html) {
 }
 
 void ConsoleEdit::set_editable(bool allow) {
-    qDebug() << "set_editable" << allow << "before" << textInteractionFlags();
+    //qDebug() << "set_editable" << allow << "before" << textInteractionFlags();
     if (allow)
         setTextInteractionFlags(Qt::TextEditorInteraction | Qt::TextBrowserInteraction);
     else
         setTextInteractionFlags((Qt::TextEditorInteraction | Qt::TextBrowserInteraction) & ~Qt::TextEditable);
-    qDebug() << "after" << textInteractionFlags();
+    //qDebug() << "after" << textInteractionFlags();
 }
 
 void ConsoleEdit::selectionChanged()

@@ -232,16 +232,6 @@ void SwiPrologEngine::run() {
     // use as initialized flag
     argc = 0;
 
-    /*
-    PL_toplevel();
-    // keep arguments valid while running
-    for (int a = 0; a < argc; ++a)
-        delete [] argv[a];
-    delete [] argv;
-
-    spe = 0;
-    */
-
     {   PlTerm color_term;
         if (PlCall("current_prolog_flag", PlTermv("color_term", color_term)) && color_term == "false")
             target->color_term = false;
@@ -341,12 +331,9 @@ predicate2(load_files)
 predicate1(current_module)
 predicate1(close)
 
-/** run script <t>, named <n> in current thread
- */
-bool SwiPrologEngine::in_thread::named_load(QString n, QString t, bool silent_yn) {
+bool SwiPrologEngine::named_load(QString n, QString t, bool silent_yn) {
     try {
         PlTerm cs, s, opts;
-#if 1
         if (    atom_codes(A(t), cs) &&
                 open_chars_stream(cs, s)) {
             PlTail l(opts);
@@ -358,19 +345,6 @@ bool SwiPrologEngine::in_thread::named_load(QString n, QString t, bool silent_yn
             close(s);
             return rc;
         }
-#else
-        if (    PlCall("atom_codes", PlTermv(A(t), cs)) &&
-                PlCall("open_chars_stream", PlTermv(cs, s))) {
-            PlTail l(opts);
-            l.append(PlCompound("stream", PlTermv(s)));
-            if (silent_yn)
-                l.append(PlCompound("silent", PlTermv(A("true"))));
-            l.close();
-            bool rc = load_files(A(n), opts);
-            close(s);
-            return rc;
-        }
-#endif
     }
     catch(PlException ex) {
         qDebug() << t2w(ex);
@@ -378,12 +352,15 @@ bool SwiPrologEngine::in_thread::named_load(QString n, QString t, bool silent_yn
     return false;
 }
 
+/** run script <t>, named <n> in current thread
+ */
+bool SwiPrologEngine::in_thread::named_load(QString n, QString t, bool silent_yn) {
+    return SwiPrologEngine::named_load(n, t, silent_yn);
+}
+
 /** if module not yet loaded, load code (i.e. assumes it starts with :-module(module))
  */
 bool SwiPrologEngine::in_thread::inline_module(QString module, QString  code, bool silent) {
-    //PlTerm v;
-    //if (!PlCall("current_module", PlTermv(A(module), v))) {
-    //if (!PlCall("current_module", PlTermv(A(module)))) {
     if (!current_module(A(module))) {
         qDebug() << "loading module snippet" << module;
         return named_load(module, code, silent);
@@ -395,7 +372,6 @@ bool SwiPrologEngine::in_thread::inline_module(QString module, QString  code, bo
 /** if not yet loaded, parse module code from resource
  */
 bool SwiPrologEngine::in_thread::resource_module(QString module, QString location, bool silent) {
-    //if (!PlCall("current_module", PlTermv(A(module)))) {
     if (!current_module(A(module))) {
         qDebug() << "loading resource_module" << module << "from" << location;
         QString path = location + "/" + module + ".pl";

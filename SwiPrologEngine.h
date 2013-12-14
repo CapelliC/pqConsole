@@ -85,6 +85,9 @@ public:
     /** query engine about expected interface */
     static bool is_tty(const FlushOutputEvents *target = 0);
 
+    /** loading in foreign thread */
+    static bool named_load(QString n, QString t, bool silent_yn);
+
 signals:
 
     /** issued to queue a string to user output */

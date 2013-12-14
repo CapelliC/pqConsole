@@ -26,10 +26,10 @@
 #include <QDebug>
 #include <QTime>
 
-/** this is a very limited - and much bugged - approach to
+/** this is a very limited approach to
   * highlighting Prolog syntax.
   * Just a quick alternative to properly interfacing SWI-Prolog goodies,
-  * that proved much more difficult to do rightly than I foreseen
+  * that proved a much harder task than I foreseen
   */
 void pqMiniSyntax::setup() {
     QString number("\\d+(?:\\.\\d+)?");
@@ -86,22 +86,22 @@ void pqMiniSyntax::highlightBlock(const QString &text)
                 if ((j = tokens.indexIn(text, i)) == -1)
                     break;
                 QStringList ml = tokens.capturedTexts();
-                Q_ASSERT(ml.length() == 5+1);
-                if ((l = ml[1].length())) {         // number
-                    setFormat(j, l, fmt[Number]);
-                } else if ((l = ml[2].length())) {  // symbol
-                    setFormat(j, l, fmt[Atom]);
-                } else if ((l = ml[3].length())) {  // var
-                    setFormat(j, l, fmt[Variable]);
-                } else if ((l = ml[4].length())) {  // quoted
-                    setFormat(j, l, fmt[String]);
-                } else if ((l = ml[5].length())) {  // operator
-                    setFormat(j, l, fmt[Atomq]);
-                } else if ((l = ml[6].length())) {  // operator
-                    setFormat(j, l, fmt[CharCode]);
-                } else if ((l = ml[7].length())) {  // operator
-                    setFormat(j, l, fmt[Operator]);
-                } else {                            // single line comment
+                Q_ASSERT(ml.length() == 7+1);
+                if ((l = ml[1].length())) {  // number
+                    setFormat(j, l, fmt[Number]); } else
+                if ((l = ml[2].length())) {  // symbol
+                    setFormat(j, l, fmt[Atom]); } else
+                if ((l = ml[3].length())) {  // var
+                    setFormat(j, l, fmt[Variable]); } else
+                if ((l = ml[4].length())) {  // double quoted string
+                    setFormat(j, l, fmt[String]); } else
+                if ((l = ml[5].length())) {  // quoted atom
+                    setFormat(j, l, fmt[Atomq]); } else
+                if ((l = ml[6].length())) {  // char code
+                    setFormat(j, l, fmt[CharCode]); } else
+                if ((l = ml[7].length())) {  // operator
+                    setFormat(j, l, fmt[Operator]); } else
+                {                            // single line comment
                     setFormat(j, text.length() - i, fmt[Comment]);
                     break;
                 }

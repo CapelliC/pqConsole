@@ -190,16 +190,6 @@ PREDICATE(rl_read_init_file, 1) {
 QStringList pqConsole::last_history_lines;
 
 NAMED_PREDICATE("$rl_history", rl_history, 1) {
-    /*
-    ConsoleEdit* c = pqConsole::by_thread();
-    if (c) {
-        PlTail lines(PL_A1);
-        foreach(QString x, c->history_lines())
-            lines.append(W(x));
-        lines.close();
-        return TRUE;
-    }
-    */
     PlTail lines(PL_A1);
     foreach(QString x, pqConsole::last_history_lines)
         lines.append(W(x));
@@ -412,4 +402,22 @@ PREDICATE0(paste) {
         return TRUE;
     }
     return FALSE;
+}
+
+predicate1(current_module)
+
+/** get a module source from resource
+ */
+PREDICATE(load_resource_module, 1) {
+    if (!current_module(PL_A1)) {
+        QString module = t2w(PL_A1);
+        qDebug() << module;
+        QString location = ":/prolog";
+        QString path = location + "/" + module + ".pl";
+        QFile file(path);
+        if (!file.open(file.ReadOnly | file.Text))
+            throw PlException(A(QString("file %1 not found").arg(path)));
+        return SwiPrologEngine::named_load(module, file.readAll(), false) ? TRUE : FALSE;
+    }
+    return TRUE;
 }

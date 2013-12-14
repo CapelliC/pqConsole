@@ -269,7 +269,7 @@ PREDICATE(invoke, 4) {
     throw PlException("pq_method failed");
 }
 
-/** pq_property(Object, Property, Value)
+/** property(Object, Property, Value)
  *  read/write a property by name
  */
 PREDICATE(property, 3) {
