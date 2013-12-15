@@ -332,6 +332,7 @@ predicate1(current_module)
 predicate1(close)
 
 bool SwiPrologEngine::named_load(QString n, QString t, bool silent_yn) {
+    //qDebug() << "SwiPrologEngine::named_load" << n << t.length() << t << silent_yn;
     try {
         PlTerm cs, s, opts;
         if (    atom_codes(A(t), cs) &&
@@ -341,7 +342,8 @@ bool SwiPrologEngine::named_load(QString n, QString t, bool silent_yn) {
             if (silent_yn)
                 l.append(silent(A("true")));
             l.close();
-            bool rc = load_files(A(n), opts);
+            //bool rc = load_files(A(n), opts);
+            bool rc = PlCall("user", "load_files", V(A(n), opts));
             close(s);
             return rc;
         }

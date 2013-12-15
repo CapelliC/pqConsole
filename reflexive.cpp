@@ -60,7 +60,7 @@ PREDICATE(create, 2) {
         });
     if (obj)
         return PL_A2 = pqObj(type, obj);
-    throw PlException("create_object failed");
+    throw PlException("create failed");
 }
 
 static QVariant T2V(PlTerm pl)

@@ -171,7 +171,7 @@ void ConsoleEdit::setup() {
 void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
 
     using namespace Qt;
-    qDebug() << "keyPressEvent" << event;
+    //qDebug() << "keyPressEvent" << event;
 
     QTextCursor c = textCursor();
 

@@ -406,6 +406,12 @@ PREDICATE0(paste) {
 
 predicate1(current_module)
 
+inline QString file2string(QFile &f) {
+    QTextStream ts(&f);
+    ts.setCodec("UTF-8");
+    return ts.readAll();
+}
+
 /** get a module source from resource
  */
 PREDICATE(load_resource_module, 1) {
@@ -417,7 +423,7 @@ PREDICATE(load_resource_module, 1) {
         QFile file(path);
         if (!file.open(file.ReadOnly | file.Text))
             throw PlException(A(QString("file %1 not found").arg(path)));
-        return SwiPrologEngine::named_load(module, file.readAll(), false) ? TRUE : FALSE;
+        return SwiPrologEngine::named_load(module, file2string(file), false) ? TRUE : FALSE;
     }
     return TRUE;
 }
