@@ -122,7 +122,8 @@ win32 {
 OTHER_FILES += \
     README.md \
     pqConsole.doxy \
-    swipl.png
+    swipl.png \
+    trace_interception.pl
 
 RESOURCES += \
     pqConsole.qrc

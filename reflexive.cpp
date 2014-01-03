@@ -3,7 +3,7 @@
 
     Author       : Carlo Capelli
     E-mail       : cc.carlo.cap@gmail.com
-    Copyright (C): 2013, Carlo Capelli
+    Copyright (C): 2013,2014 Carlo Capelli
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -60,7 +60,7 @@ PREDICATE(create, 2) {
         });
     if (obj)
         return PL_A2 = pqObj(type, obj);
-    throw PlException("create failed");
+    throw PlException(A(QString("create '%1' failed").arg(name)));
 }
 
 static QVariant T2V(PlTerm pl)

@@ -20,5 +20,5 @@ History
    Since I'm still interested in keeping pqConsole independent from actual applicative front end,
    from time to time there will be a manual sync, to keep this one aligned.
 
-author:  Carlo Capelli - Brescia 2013
+author:  Carlo Capelli - Brescia 2013,2014
 licence: LGPL v2.1
