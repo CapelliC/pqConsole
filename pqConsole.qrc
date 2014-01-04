@@ -1,6 +1,8 @@
 <RCC>
     <qresource prefix="/">
         <file>swipl.png</file>
+    </qresource>
+    <qresource prefix="/prolog">
         <file>trace_interception.pl</file>
     </qresource>
 </RCC>

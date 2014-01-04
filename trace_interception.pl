@@ -24,16 +24,19 @@
 
 :- module(trace_interception, [goal_source_position/5]).
 
+%%  prolog_trace_interception(+Port, +Frame, +Choice, -Action)
+%
+%   see http://www.swi-prolog.org/pldoc/doc_for?object=prolog_trace_interception/4
+%
 prolog_trace_interception(Port, Frame, Choice, Action) :-
         current_prolog_flag(pq_tracer, true), !,
         pq_trace_interception(Port, Frame, Choice, Action).
 
-%%	goal_source_position(+Port, +Frame, -Clause, -File, -Position) is det
+%%  goal_source_position(+Port, +Frame, -Clause, -File, -Position) is det
 %
-%	access internal frame/clause information to get the
-%	source characters position
+%   access internal frame/clause information to get the
+%   source characters position
 %
-
 goal_source_position(_Port, Frame, Clause, File, A-Z) :-
         prolog_frame_attribute(Frame, hidden, false),
         prolog_frame_attribute(Frame, parent, Parent),

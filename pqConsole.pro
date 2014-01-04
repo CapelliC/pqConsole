@@ -1,10 +1,9 @@
 #--------------------------------------------------
 # pqConsole.pro: SWI-Prolog / QT interface
 #--------------------------------------------------
-#
 # REPL in QTextEdit on a background logic processor
 #--------------------------------------------------
-# Ing. Capelli Carlo - Brescia 2013
+# Copyright (C) : 2013,2014 Carlo Capelli
 
 QT += core gui
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
