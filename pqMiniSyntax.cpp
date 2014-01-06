@@ -26,10 +26,9 @@
 #include <QDebug>
 #include <QTime>
 
-/** this is a very limited approach to
-  * highlighting Prolog syntax.
+/** this is a very limited approach to highlighting Prolog syntax.
   * Just a quick alternative to properly interfacing SWI-Prolog goodies,
-  * that proved a much harder task than I foreseen
+  * that proved to be a much harder task than I foreseen
   */
 void pqMiniSyntax::setup() {
     QString number("\\d+(?:\\.\\d+)?");
