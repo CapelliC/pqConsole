@@ -73,7 +73,12 @@ public:
         bool resource_module(QString module, QString location = ":/prolog", bool silent = true);
 
     private:
+
+        /** allocate resources for current calls */
         PlFrame *frame;
+
+        /** create only in not already available */
+        int thid;
     };
 
     /** handle application quit request in thread that started PL_toplevel */

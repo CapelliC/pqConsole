@@ -45,10 +45,8 @@ struct arith : Bin { arith(T Pred, T Num) : Bin("/", Pred, Num) {} };
  *  thanks to Jan for crafting a proper interface wrapping SWI-Prolog available facilities
  */
 QString Completion::initialize(int promptPosition, QTextCursor c, QStringList &strings) {
-
-    //SwiPrologEngine::in_thread _int;
     QString rets;
-
+    SwiPrologEngine::in_thread _int;
     try {
         int p = c.position();
         Q_ASSERT(p >= promptPosition);

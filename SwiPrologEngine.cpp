@@ -291,35 +291,40 @@ void SwiPrologEngine::awake() {
     if the thread associated to the current tab is not running a query.
  */
 SwiPrologEngine::in_thread::in_thread()
-    : frame(0)
+    : frame(0), thid(-1)
 {
-    while (!spe)
-        msleep(100);
-    while (!spe->isRunning())
-        msleep(100);
-    while (spe->argc)
-        msleep(100);
+    if (PL_thread_self() == -1) {
+        // no thread yet available
+        while (!spe)
+            msleep(100);
+        while (!spe->isRunning())
+            msleep(100);
+        while (spe->argc)
+            msleep(100);
 
-    PL_thread_attr_t attr;
-    memset(&attr, 0, sizeof(attr));
-    attr.flags = PL_THREAD_NO_DEBUG;
+        PL_thread_attr_t attr;
+        memset(&attr, 0, sizeof(attr));
+        attr.flags = PL_THREAD_NO_DEBUG;
 
-    // CC: aliasing should have a *different* name for different threads...
-    //attr.alias = (char*)"__gui";
-    QByteArray alias;
-    QTextStream(&alias) << "_gt_" << QThread::currentThreadId();
-    attr.alias = alias.data();
+        // CC: aliasing should have a *different* name for different threads...
+        //attr.alias = (char*)"__gui";
+        QByteArray alias;
+        QTextStream(&alias) << "_gt_" << QThread::currentThreadId();
+        attr.alias = alias.data();
 
-    qDebug() << "in_thread:PL_thread_attach_engine" << CT;
+        qDebug() << "in_thread:PL_thread_attach_engine" << CT;
 
-    int id = PL_thread_attach_engine(&attr);
-    Q_ASSERT(id >= 0);			/* JW: Should throw exception */
+        thid = PL_thread_attach_engine(&attr);
+        Q_ASSERT(thid >= 0);			/* JW: Should throw exception */
+    }
+
     frame = new PlFrame;
 }
 
 SwiPrologEngine::in_thread::~in_thread() {
     delete frame;
-    PL_thread_destroy_engine();
+    if (thid != -1)
+        PL_thread_destroy_engine();
 }
 
 structure1(stream)
