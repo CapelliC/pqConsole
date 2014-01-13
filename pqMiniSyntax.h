@@ -52,6 +52,7 @@ private:
         Comment,
         Atom,
         Atomq,
+        Atombackq,
         String,
         Variable,
         Number,

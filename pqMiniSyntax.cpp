@@ -36,15 +36,17 @@ void pqMiniSyntax::setup() {
     QString var("[A-Z_][A-Za-z0-9_]*");
     QString quoted("\"[^\"]*\"");
     QString atomq("'[^\'']*'");
+    QString atombackq("`[^`]*`");
     QString charcode("0'.|0'\\t|0'\\n|0'\\r|0'\\u[0-9][0-9][0-9][0-9]");
     QString oper("[\\+\\-\\*\\/\\=\\^<>~:\\.,;\\?@#$\\\\&{}`]+");
 
-    tokens = QRegExp(QString("(%1)|(%2)|(%3)|(%4)|(%5)|(%6)|(%7)|%").arg(number, symbol, var, quoted, atomq, charcode, oper));
+    tokens = QRegExp(QString("(%1)|(%2)|(%3)|(%4)|(%5)|(%6)|(%7)|(%8)|%").arg(number, symbol, var, quoted, atomq, atombackq, charcode, oper));
 
     fmt[Comment].setForeground(Qt::darkGreen);
     fmt[Number].setForeground(QColor("blueviolet"));
     fmt[Atom].setForeground(Qt::blue);
     fmt[Atomq].setForeground(Qt::blue);
+    fmt[Atombackq].setForeground(Qt::darkYellow);
     fmt[String].setForeground(Qt::magenta);
     fmt[Variable].setForeground(QColor("brown"));
     fmt[Operator].setFontWeight(QFont::Bold);
@@ -70,7 +72,7 @@ void pqMiniSyntax::highlightBlock(const QString &text)
     }
 
     for (int i = 0, j, l; ; i = j + l)
-        if (currentBlockState()) {              // in multiline comment
+        if (currentBlockState()) {  // in multiline comment
             if ((j = text.indexOf("*/", i)) == -1) {
                 setFormat(i, text.length() - i, fmt[Comment]);
                 break;
@@ -78,32 +80,34 @@ void pqMiniSyntax::highlightBlock(const QString &text)
             setFormat(i, j - i + (l = 2), fmt[Comment]);
             setCurrentBlockState(0);
         } else {
-            if ((j = text.indexOf("/*", i)) >= 0) {         // begin multiline comment
-                setFormat(j, l = 2, fmt[Comment]);
-                setCurrentBlockState(1);
-            } else {
-                if ((j = tokens.indexIn(text, i)) == -1)
-                    break;
-                QStringList ml = tokens.capturedTexts();
-                Q_ASSERT(ml.length() == 7+1);
-                if ((l = ml[1].length())) {  // number
-                    setFormat(j, l, fmt[Number]); } else
-                if ((l = ml[2].length())) {  // symbol
-                    setFormat(j, l, fmt[Atom]); } else
-                if ((l = ml[3].length())) {  // var
-                    setFormat(j, l, fmt[Variable]); } else
-                if ((l = ml[4].length())) {  // double quoted string
-                    setFormat(j, l, fmt[String]); } else
-                if ((l = ml[5].length())) {  // quoted atom
-                    setFormat(j, l, fmt[Atomq]); } else
-                if ((l = ml[6].length())) {  // char code
-                    setFormat(j, l, fmt[CharCode]); } else
-                if ((l = ml[7].length())) {  // operator
+            if ((j = tokens.indexIn(text, i)) == -1)
+                break;
+            QStringList ml = tokens.capturedTexts();
+            Q_ASSERT(ml.length() == 8+1);
+            if ((l = ml[1].length())) {  // number
+                setFormat(j, l, fmt[Number]); } else
+            if ((l = ml[2].length())) {  // symbol
+                setFormat(j, l, fmt[Atom]); } else
+            if ((l = ml[3].length())) {  // var
+                setFormat(j, l, fmt[Variable]); } else
+            if ((l = ml[4].length())) {  // double quoted string
+                setFormat(j, l, fmt[String]); } else
+            if ((l = ml[5].length())) {  // quoted atom
+                setFormat(j, l, fmt[Atomq]); } else
+            if ((l = ml[6].length())) {  // quoted atom
+                setFormat(j, l, fmt[Atombackq]); } else
+            if ((l = ml[7].length())) {  // char code
+                setFormat(j, l, fmt[CharCode]); } else
+            if ((l = ml[8].length())) {  // operator
+                // or comment ?
+                if (l >= 2 && ml[8].left(2) == "/*") {
+                    setFormat(j, l = 2, fmt[Comment]);
+                    setCurrentBlockState(1);
+                } else
                     setFormat(j, l, fmt[Operator]); } else
-                {                            // single line comment
-                    setFormat(j, text.length() - i, fmt[Comment]);
-                    break;
-                }
+            {   // single line comment
+                setFormat(j, text.length() - i, fmt[Comment]);
+                break;
             }
         }
 
