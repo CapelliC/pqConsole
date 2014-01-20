@@ -31,7 +31,7 @@
 
 /** some configurable user preference
  */
-class Preferences : public QSettings
+class PQCONSOLESHARED_EXPORT Preferences : public QSettings
 {
     Q_OBJECT
 public:

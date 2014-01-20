@@ -134,8 +134,8 @@ void SwiPrologEngine::serve_query(query p) {
     QString n = p.name, t = p.text;
     try {
         if (n.isEmpty()) {
-            //PlQuery q("call", PlTermv(PlCompound(t.toUtf8())));
-            call q(C(t.toUtf8()));
+            PlQuery q("call", PlTermv(PlCompound(t.toUtf8())));
+            //call q(C(t.toUtf8()));
             //PlQuery q("call", PlTermv(PlCompound(t.toStdWString().data())));
             int occurrences = 0;
             while (q.next_solution())
@@ -143,8 +143,8 @@ void SwiPrologEngine::serve_query(query p) {
             emit query_complete(t, occurrences);
         }
         else {
-            //PlQuery q(A(n), "call", PlTermv(PlCompound(t.toUtf8())));
-            call q(C(t.toUtf8()));
+            PlQuery q(A(n), "call", PlTermv(PlCompound(t.toUtf8())));
+            //call q(C(t.toUtf8()));
             //PlQuery q(A(n), "call", PlTermv(PlCompound(t.toStdWString().data())));
             int occurrences = 0;
             while (q.next_solution())
@@ -152,7 +152,7 @@ void SwiPrologEngine::serve_query(query p) {
             emit query_complete(t, occurrences);
         }
     }
-    catch(PlException ex) {
+    catch(PlException& ex) {
         qDebug() << t << CCP(ex);
         emit query_exception(n, CCP(ex));
     }

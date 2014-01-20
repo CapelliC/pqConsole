@@ -35,7 +35,6 @@ SOURCES += \
     pqApplication.cpp \
     win_builtins.cpp \
     reflexive.cpp \
-    ParenMatching.cpp \
     pqMiniSyntax.cpp
 
 HEADERS += \
@@ -52,7 +51,6 @@ HEADERS += \
     do_events.h \
     FlushOutputEvents.h \
     pqApplication.h \
-    ParenMatching.h \
     pqMiniSyntax.h
 
 symbian {
@@ -126,3 +124,10 @@ OTHER_FILES += \
 
 RESOURCES += \
     pqConsole.qrc
+
+win32:CONFIG(release, debug|release): LIBS += -L$$OUT_PWD/../lqUty/release/ -llqUty
+else:win32:CONFIG(debug, debug|release): LIBS += -L$$OUT_PWD/../lqUty/debug/ -llqUty
+else:unix:!symbian: LIBS += -L$$OUT_PWD/../lqUty/ -llqUty
+
+INCLUDEPATH += $$PWD/../lqUty
+DEPENDPATH += $$PWD/../lqUty
