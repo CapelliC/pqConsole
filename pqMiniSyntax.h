@@ -28,6 +28,8 @@
 #include <QRegExp>
 #include <QElapsedTimer>
 
+/** a minimal Prolog syntax highlighter
+ */
 class PQCONSOLESHARED_EXPORT pqMiniSyntax : public QSyntaxHighlighter
 {
     Q_OBJECT
@@ -43,7 +45,7 @@ public slots:
 
 protected:
 
-    // handle state tracking using BlockUserData
+    // handle state tracking using currentBlockState/previousBlockState
     virtual void highlightBlock(const QString &text);
 
 private:
