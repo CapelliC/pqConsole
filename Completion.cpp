@@ -80,29 +80,43 @@ QString Completion::initialize(int promptPosition, QTextCursor c, QStringList &s
     return rets;
 }
 
+//predicate3(setof)
+//structure5(sub_atom)
+
 /** issue a query filling the model storage
  *  this will change when I will learn how to call SWI-Prolog completion interface
  */
-void Completion::initialize(QStringList &strings) {
+void Completion::initialize(QSet<QString> &strings, bool reload) {
+    static QSet<QString> curr;
+    if (curr.isEmpty() || reload) {
+        curr.clear();
+        SwiPrologEngine::in_thread _int;
+        try {
 
-    SwiPrologEngine::in_thread _int;
-    try {
-        PlTerm p,m,a,l,v;
-        PlQuery q("setof",
-            PlTermv(p,
-                quv(m,
-                    quv(a,
-                        join(PlCompound("current_predicate", mod(m, arith(p, a))),
-                            neg(C("sub_atom", PlTermv(p, zero, one, _V, A("$"))))
-                ))),
-            l));
-        if (q.next_solution())
-            for (PlTail x(l); x.next(v); )
-                strings.append(CCP(v));
+            PlTerm p,m,a,l,v;
+            PlQuery q("setof",
+                PlTermv(p,
+                    quv(m,
+                        quv(a,
+                            join(PlCompound("current_predicate", mod(m, arith(p, a))),
+                                neg(C("sub_atom", PlTermv(p, zero, one, _V, A("$"))))
+                    ))),
+                l));
+            if (q.next_solution())
+                for (PlTail x(l); x.next(v); )
+                    curr << t2w(v);
+
+            PlTerm M, Ms;
+            if (PlCall("setof", PlTermv(M, PlCompound("current_module", M), Ms)))
+                for (PlTail x(Ms); x.next(M); )
+                    curr << t2w(M);
+
+        }
+        catch(PlException e) {
+            qDebug() << t2w(e);
+        }
     }
-    catch(PlException e) {
-        qDebug() << CCP(e);
-    }
+    strings.unite(curr);
 }
 
 Completion::status Completion::helpidx_status = Completion::untried;

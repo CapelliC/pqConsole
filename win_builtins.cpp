@@ -38,14 +38,10 @@
 #include <QDebug>
 #include <QMenuBar>
 #include <QClipboard>
-#include <QFileDialog>
 #include <QGridLayout>
-#include <QColorDialog>
-#include <QFontDialog>
 #include <QMessageBox>
 #include <QMainWindow>
 #include <QApplication>
-#include <QFontMetrics>
 
 // SWIPL-WIN.EXE interface implementation
 

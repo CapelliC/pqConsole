@@ -133,28 +133,24 @@ void SwiPrologEngine::serve_query(query p) {
     Q_ASSERT(!p.is_script);
     QString n = p.name, t = p.text;
     try {
+        int occurrences = 0;
         if (n.isEmpty()) {
-            PlQuery q("call", PlTermv(PlCompound(t.toUtf8())));
-            //call q(C(t.toUtf8()));
-            //PlQuery q("call", PlTermv(PlCompound(t.toStdWString().data())));
-            int occurrences = 0;
+            call q(C(t.toUtf8()));
             while (q.next_solution())
                 emit query_result(t, ++occurrences);
-            emit query_complete(t, occurrences);
         }
         else {
-            PlQuery q(A(n), "call", PlTermv(PlCompound(t.toUtf8())));
-            //call q(C(t.toUtf8()));
-            //PlQuery q(A(n), "call", PlTermv(PlCompound(t.toStdWString().data())));
-            int occurrences = 0;
+            PlQuery q(A(n), "call", V(C(t.toUtf8())));
             while (q.next_solution())
                 emit query_result(t, ++occurrences);
-            emit query_complete(t, occurrences);
         }
+        emit query_complete(t, occurrences);
     }
-    catch(PlException& ex) {
-        qDebug() << t << CCP(ex);
-        emit query_exception(n, CCP(ex));
+    catch(PlException ex) {
+        QString detail = t2w(ex);
+        QString message = QString::fromWCharArray(WCP(ex));
+        qDebug() << "PlException" << CT << n << t << detail << message;
+        emit query_exception(t, QString("[%1]\n[%2]").arg(message, detail));
     }
 }
 
@@ -164,7 +160,7 @@ ssize_t SwiPrologEngine::_write_(void *handle, char *buf, size_t bufsize) {
     Q_UNUSED(handle);
     if (spe) {   // not terminated?
         emit spe->user_output(QString::fromUtf8(buf, bufsize));
-        if (spe->target->status == ConsoleEdit::running)
+        if (spe->target && spe->target->status == ConsoleEdit::running)
             spe->flush();
     }
     return bufsize;

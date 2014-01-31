@@ -26,6 +26,8 @@
 #include "pqConsole_global.h"
 #include <QElapsedTimer>
 #include <QThread>
+#include <QPointer>
+
 class ConsoleEdit;
 
 /** factorize output flushing interface
@@ -35,7 +37,7 @@ struct PQCONSOLESHARED_EXPORT FlushOutputEvents {
     FlushOutputEvents(ConsoleEdit *target = 0, int msec_delta_refresh = 10);
     void flush();
 
-    ConsoleEdit *target;
+    QPointer<ConsoleEdit> target;
     QElapsedTimer measure_calls;
     int msec_delta_refresh;
 };

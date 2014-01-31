@@ -35,7 +35,7 @@ FlushOutputEvents::FlushOutputEvents(ConsoleEdit *target, int msec_delta_refresh
 }
 
 void FlushOutputEvents::flush() {
-    if (measure_calls.elapsed() >= msec_delta_refresh) {
+    if (target && measure_calls.elapsed() >= msec_delta_refresh) {
 
         ConsoleEdit::exec_sync s;
 

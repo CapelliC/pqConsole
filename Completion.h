@@ -38,7 +38,7 @@ struct PQCONSOLESHARED_EXPORT Completion
     static QString initialize(int promptPosition, QTextCursor cursor, QStringList &strings);
 
     /** load predicates into strings */
-    static void initialize(QStringList &strings);
+    static void initialize(QSet<QString> &strings, bool reload = false);
 
     /** tooltips display, from helpidx.pl */
     enum status { untried, available, missing };

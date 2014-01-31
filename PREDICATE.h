@@ -99,6 +99,7 @@ template<typename Obj> Obj* pq_cast(T ptr) { return static_cast<Obj*>(static_cas
     instead of
       if (PlCall("member", PlTermv(X, Y)))...
  */
+#define predicate0(P) inline int P() { return PlCall(#P); }
 #define predicate1(P) inline int P(T A) { return PlCall(#P, V(A)); }
 #define predicate2(P) inline int P(T A, T B) { return PlCall(#P, V(A, B)); }
 #define predicate3(P) inline int P(T A, T B, T C) { return PlCall(#P, V(A, B, C)); }
@@ -107,17 +108,18 @@ template<typename Obj> Obj* pq_cast(T ptr) { return static_cast<Obj*>(static_cas
 
 /** queryN(name) : multiple solution by name.
     For instance 'query3(select)' enables
-      select s(X, Xs, Rs);
-      while (s.next_solution()) {}
+      for (select s(X, Xs, Rs); s; ) {}
     instead of
       PlQuery s("select", PlTermv(X, X, Rs));
       while (s.next_solution()) {}
  */
-#define query1(P) struct P : PlQuery { P(T A) : PlQuery(#P, V(A)) { } };
-#define query2(P) struct P : PlQuery { P(T A, T B) : PlQuery(#P, V(A, B)) { } };
-#define query3(P) struct P : PlQuery { P(T A, T B, T C) : PlQuery(#P, V(A, B, C)) { } };
-#define query4(P) struct P : PlQuery { P(T A, T B, T C, T D) : PlQuery(#P, V(A, B, C, D)) { } };
-#define query5(P) struct P : PlQuery { P(T A, T B, T C, T D, T E) : PlQuery(#P, V(A, B, C, D, E)) { } };
+#define LOOP__ { } operator bool() { return next_solution(); }
+#define query0(P) struct P : PlQuery { P() : PlQuery(#P, V()) LOOP__ };
+#define query1(P) struct P : PlQuery { P(T A) : PlQuery(#P, V(A)) LOOP__ };
+#define query2(P) struct P : PlQuery { P(T A, T B) : PlQuery(#P, V(A, B)) LOOP__ };
+#define query3(P) struct P : PlQuery { P(T A, T B, T C) : PlQuery(#P, V(A, B, C)) LOOP__ };
+#define query4(P) struct P : PlQuery { P(T A, T B, T C, T D) : PlQuery(#P, V(A, B, C, D)) LOOP__ };
+#define query5(P) struct P : PlQuery { P(T A, T B, T C, T D, T E) : PlQuery(#P, V(A, B, C, D, E)) LOOP__ };
 
 #endif
 

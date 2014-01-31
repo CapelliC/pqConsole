@@ -253,7 +253,7 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
         down = false;
         // fall throu
     case Key_Down:
-        if (!ctrl) {
+        if (ctrl) { //if (!ctrl) {
             // naive history handler
             if (editable) {
                 if (!history.empty()) {
@@ -614,7 +614,7 @@ void ConsoleEdit::user_prompt(int threadId, bool tty) {
 
     is_tty = tty;
 
-    Completion::helpidx();
+    //Completion::helpidx();
 
     QTextCursor c = textCursor();
     c.movePosition(QTextCursor::End);
