@@ -1038,16 +1038,18 @@ void ConsoleEdit::selectionChanged()
         QList<ExtraSelection> lsel;
         QTextCharFormat bold = ParenMatching::range::bold();
 
-        while (c.block() != c.document()->begin() && c.block().isVisible()) {
-            qDebug() << c.position();
+        QTextCursor cfirst = cursorForPosition(QPoint(0, 0));
+        if (!cfirst.isNull()) {
+            while (c.block() != cfirst.block())
+                c.movePosition(c.Up);
             c.movePosition(c.Up);
-        }
-        for ( ; ; ) {
-            c = document()->find(csel, c, QTextDocument::FindCaseSensitively);
-            if (c.isNull() || !c.block().isVisible())
-                break;
-            lsel.append(ExtraSelection {c, c.blockCharFormat()});
-            c.setCharFormat(bold);
+            for ( ; ; ) {
+                c = document()->find(csel, c, QTextDocument::FindCaseSensitively);
+                if (c.isNull() || !c.block().isVisible())
+                    break;
+                lsel.append(ExtraSelection {c, c.blockCharFormat()});
+                c.setCharFormat(bold);
+            }
         }
 
         setExtraSelections(lsel);
