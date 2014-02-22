@@ -28,9 +28,12 @@
 %
 %   see http://www.swi-prolog.org/pldoc/doc_for?object=prolog_trace_interception/4
 %
-prolog_trace_interception(Port, Frame, Choice, Action) :-
+user:prolog_trace_interception(Port, Frame, Choice, Action) :-
         current_prolog_flag(pq_tracer, true), !,
-        pq_trace_interception(Port, Frame, Choice, Action).
+        writeln(prolog_trace_interception(Port, Frame, Choice, Action)),
+    %writeln(pq_tracer),
+        pq_trace_interception(Port, Frame, Choice, Action), writeln(why).
+    %writeln(pq_trace_interception(Port, Frame, Choice, Action)).
 
 %%  goal_source_position(+Port, +Frame, -Clause, -File, -Position) is det
 %

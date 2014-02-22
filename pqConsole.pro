@@ -48,7 +48,6 @@ HEADERS += \
     Swipl_IO.h \
     pqMainWindow.h \
     Preferences.h \
-    do_events.h \
     FlushOutputEvents.h \
     pqApplication.h \
     pqMiniSyntax.h

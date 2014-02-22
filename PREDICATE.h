@@ -45,6 +45,7 @@ inline CCP S(const PlTerm &T) { return T; }
 inline PlAtom W(const QString &s) {
     return PlAtom(s.toStdWString().data());
 }
+
 inline PlAtom A(QString s) {
     return W(s);
 }
@@ -105,6 +106,19 @@ template<typename Obj> Obj* pq_cast(T ptr) { return static_cast<Obj*>(static_cas
 #define predicate3(P) inline int P(T A, T B, T C) { return PlCall(#P, V(A, B, C)); }
 #define predicate4(P) inline int P(T A, T B, T C, T D) { return PlCall(#P, V(A, B, C, D)); }
 #define predicate5(P) inline int P(T A, T B, T C, T D, T E) { return PlCall(#P, V(A, B, C, D, E)); }
+
+/** mod_predicateN(module,name) : access Prolog predicate by name and context module.
+    For instance mod_predicate2(lists,member) enables
+      if (member(X, Y))...
+    instead of
+      if (PlCall("lists", "member", PlTermv(X, Y)))...
+ */
+#define mod_predicate0(M,P) inline int P() { return PlCall(#M, #P); }
+#define mod_predicate1(M,P) inline int P(T A) { return PlCall(#M, #P, V(A)); }
+#define mod_predicate2(M,P) inline int P(T A, T B) { return PlCall(#M, #P, V(A, B)); }
+#define mod_predicate3(M,P) inline int P(T A, T B, T C) { return PlCall(#M, #P, V(A, B, C)); }
+#define mod_predicate4(M,P) inline int P(T A, T B, T C, T D) { return PlCall(#M, #P, V(A, B, C, D)); }
+#define mod_predicate5(M,P) inline int P(T A, T B, T C, T D, T E) { return PlCall(#M, #P, V(A, B, C, D, E)); }
 
 /** queryN(name) : multiple solution by name.
     For instance 'query3(select)' enables
