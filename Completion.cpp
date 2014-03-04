@@ -82,12 +82,24 @@ QString Completion::initialize(int promptPosition, QTextCursor c, QStringList &s
 
 //predicate3(setof)
 //structure5(sub_atom)
+query2(module_property)
+structure1(exports)
 
 /** issue a query filling the model storage
  *  this will change when I will learn how to call SWI-Prolog completion interface
  */
 void Completion::initialize(QSet<QString> &strings, bool reload) {
-    static QSet<QString> curr;
+    /*static QSet<QString> preds;*/
+    Q_UNUSED(reload)
+    //static QMap<QString, QSet<QString>> cmods;
+
+    T Mod, Exp, PI;
+    for (module_property mp(Mod, exports(Exp)); mp; ) {
+        for (L exp(Exp); exp.next(PI); )
+            //preds.insert(t2w(exp));
+            strings.insert(t2w(PI));
+    }
+    /*
     if (curr.isEmpty() || reload) {
         curr.clear();
         SwiPrologEngine::in_thread _int;
@@ -117,6 +129,7 @@ void Completion::initialize(QSet<QString> &strings, bool reload) {
         }
     }
     strings.unite(curr);
+    */
 }
 
 Completion::status Completion::helpidx_status = Completion::untried;
