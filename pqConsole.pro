@@ -5,8 +5,7 @@
 #--------------------------------------------------
 # Copyright (C) : 2013,2014 Carlo Capelli
 
-QT += core gui
-greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
+QT += core gui widgets
 
 TARGET = pqConsole
 TEMPLATE = lib

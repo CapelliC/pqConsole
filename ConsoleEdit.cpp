@@ -29,6 +29,7 @@
 #include "Preferences.h"
 #include "pqMainWindow.h"
 #include "pqConsole.h"
+#include "blockSig.h"
 
 #include <signal.h>
 
@@ -157,7 +158,10 @@ void ConsoleEdit::setup() {
     input_text_fmt.setForeground(ANSI2col(p.console_inp_fore));
     input_text_fmt.setBackground(ANSI2col(p.console_inp_back));
 
-    setLineWrapMode(p.wrapMode);
+    //setLineWrapMode(p.wrapMode);
+    //setWordWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
+    //setLineWrapMode(WidgetWidth);
+
     setFont(p.console_font);
 
     connect(this, SIGNAL(cursorPositionChanged()), this, SLOT(onCursorPositionChanged()));
@@ -200,6 +204,16 @@ void ConsoleEdit::keyPressEvent(QKeyEvent *event) {
     QString cmd;
 
     switch (k) {
+
+    case Key_Help:
+    case Key_F1: {
+        QString topic;
+        if (!c.hasSelection())
+            c.select(c.WordUnderCursor);
+        topic = c.selectedText();
+        emit request_help(topic);
+        return;
+    }
 
     case Key_Space:
         if (!on_completion && ctrl && editable) {
@@ -614,7 +628,7 @@ void ConsoleEdit::user_prompt(int threadId, bool tty) {
 
     is_tty = tty;
 
-    Completion::helpidx();
+    //Completion::helpidx();
 
     QTextCursor c = textCursor();
     c.movePosition(QTextCursor::End);
@@ -1028,6 +1042,8 @@ void ConsoleEdit::set_editable(bool allow) {
 
 void ConsoleEdit::selectionChanged()
 {
+    blockSig bs(this);
+
     foreach (ExtraSelection s, extraSelections())
         s.cursor.setCharFormat(s.format);
     extraSelections().clear();
@@ -1040,7 +1056,7 @@ void ConsoleEdit::selectionChanged()
 
         QTextCursor cfirst = cursorForPosition(QPoint(0, 0));
         if (!cfirst.isNull()) {
-            while (c.block() != cfirst.block())
+            while (c.block().position() > cfirst.block().position())
                 c.movePosition(c.Up);
             c.movePosition(c.Up);
             for ( ; ; ) {

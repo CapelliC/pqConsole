@@ -295,6 +295,9 @@ signals:
 
     /** notify SWI-Prolog has been initialized, ready to run */
     void engine_ready();
+
+    /** user requested topic help */
+    void request_help(QString topic);
 };
 
 #endif
